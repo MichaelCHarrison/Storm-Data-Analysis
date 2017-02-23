@@ -11,11 +11,43 @@ Storms and other severe weather events can cause both public health and economic
 
 This project involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
 
+Your data analysis must address the following questions:
+
+1. Across the United States, which types of events (as indicated in the 𝙴𝚅𝚃𝚈𝙿𝙴 variable) are most harmful with respect to population health?
+2. Across the United States, which types of events have the greatest economic consequences?
+
 ### Data Processing
 
+Using the read.csv, data is imported, replacing "?" with "NA" to eliminate unusuable factor level in the variable representing the exponential for property damage
+
 ```{r echo=TRUE, cache=TRUE}
-stormdata <- read.csv("StormData.csv")
-head(stormdata)
+stormdata <- read.csv("StormData.csv", na.strings = "?")
 ```
 
-### Result
+All column names set to lower case for ease in coding; state columns renamed for clarity.
+```{r}
+colnames(stormdata) <- tolower(colnames(stormdata))
+colnames(stormdata)[1] <- "statecode"
+colnames(stormdata)[7] <- "stateabv" 
+```
+
+Using the factor level located in propdmgexp to standardize the value represented in the propdmg and cropdmg variables.
+```{r, cache=TRUE}
+#Clean for Economic Analysis
+#stormdata$propdmgexp <- as.character(stormdata$propdmgexp)
+options(scipen = 999)
+library(data.table)
+storm_tbl <- as.data.table(stormdata)
+storm_tbl[propdmgexp == "K", propdmg := propdmg * 1000]
+storm_tbl[propdmgexp == "M", propdmg := propdmg * 1E6]
+storm_tbl[propdmgexp == "B", propdmg := propdmg * 1E9]
+
+
+# datatest <- stormdata %>%
+#         mutate(propdmg = ifelse(propdmgexp == "K", propdmg * 1000, NA))
+# datatest
+
+```
+
+
+### Results
