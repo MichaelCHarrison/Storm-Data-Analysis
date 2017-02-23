@@ -2,7 +2,9 @@
 title: "NOAA Storm Database Analysis"
 author: "Michael Harrison"
 date: "February 22, 2017"
-output: pdf_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 ##Introduction
@@ -14,38 +16,74 @@ This project involves exploring the U.S. National Oceanic and Atmospheric Admini
 Your data analysis must address the following questions:
 
 1. Across the United States, which types of events (as indicated in the 𝙴𝚅𝚃𝚈𝙿𝙴 variable) are most harmful with respect to population health?
+
 2. Across the United States, which types of events have the greatest economic consequences?
 
-### Data Processing
+### Data Processing; cleaning data, analysis
 
 Using the read.csv, data is imported, replacing "?" with "NA" to eliminate unusuable factor level in the variable representing the exponential for property damage
 
-```{r echo=TRUE, cache=TRUE}
-stormdata <- read.csv("StormData.csv", na.strings = "?")
-```
-
 All column names set to lower case for ease in coding; state columns renamed for clarity.
-```{r}
-colnames(stormdata) <- tolower(colnames(stormdata))
-colnames(stormdata)[1] <- "statecode"
-colnames(stormdata)[7] <- "stateabv" 
+
+```{r echo=TRUE, cache=TRUE, message=FALSE}
+library(data.table); library(dplyr); library(lubridate)
+options(scipen = 999)
+
+stormdt <- fread("StormData.csv")
+
+colnames(stormdt) <- tolower(colnames(stormdt))
+colnames(stormdt)[1] <- "fips"
+colnames(stormdt)[7] <- "stateabv" 
+
+head(stormdt)
+
 ```
 
-Using the factor level located in propdmgexp to standardize the value represented in the propdmg and cropdmg variables.
+Applying the factor level found in propdmgexp to adjacent propdmg column:
+
 ```{r, cache=TRUE}
 #Clean for Economic Analysis
-#stormdata$propdmgexp <- as.character(stormdata$propdmgexp)
-options(scipen = 999)
-library(data.table)
-storm_tbl <- as.data.table(stormdata)
-storm_tbl[propdmgexp == "K", propdmg := propdmg * 1000]
-storm_tbl[propdmgexp == "M", propdmg := propdmg * 1E6]
-storm_tbl[propdmgexp == "B", propdmg := propdmg * 1E9]
+
+stormdt[propdmgexp == "H" | propdmgexp == "h", propdmg := propdmg * 100]
+stormdt[propdmgexp == "K" | propdmgexp == "k", propdmg := propdmg * 1000]
+stormdt[propdmgexp == "M" | propdmgexp == "m", propdmg := propdmg * 1E6]
+stormdt[propdmgexp == "B" | propdmgexp == "b", propdmg := propdmg * 1E9]
+
+for(i in 1:9){
+stormdt[propdmgexp == i, propdmg := propdmg * 10^i]
+}
+
+stormdt[cropdmgexp == "H" | cropdmgexp == "h", cropdmg := cropdmg * 100]
+stormdt[cropdmgexp == "K" | cropdmgexp == "k", cropdmg := cropdmg * 1000]
+stormdt[cropdmgexp == "M" | cropdmgexp == "m", cropdmg := cropdmg * 1E6]
+stormdt[cropdmgexp == "B" | cropdmgexp == "b", cropdmg := cropdmg * 1E9]
+
+for(i in 1:9){
+stormdt[cropdmgexp == i, cropdmg := cropdmg * 10^i]
+}
 
 
-# datatest <- stormdata %>%
-#         mutate(propdmg = ifelse(propdmgexp == "K", propdmg * 1000, NA))
-# datatest
+```
+
+Fatalities by event type:
+```{r}
+event_fatalities <- stormdt %>%
+        group_by(evtype) %>%
+        summarise(totalfatalities = sum(fatalities)) %>%
+        arrange(desc(totalfatalities))
+print(head(event_fatalities, n=10))
+
+```
+
+Injuries by event type:
+
+```{r}
+event_injuries <- stormdt %>%
+        group_by(evtype) %>%
+        summarise(totalinjuries = sum(injuries)) %>%
+        arrange(desc(totalinjuries))
+head(event_injuries, n=10)
+```{r}
 
 ```
 
