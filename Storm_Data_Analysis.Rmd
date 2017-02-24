@@ -19,7 +19,7 @@ Your data analysis must address the following questions:
 
 2. Across the United States, which types of events have the greatest economic consequences?
 
-### Data Processing; cleanianal cleaningysis
+### Data Processing; data cleaning, analysis
 
 Using the read.csv, data is imported, replacing "?" with "NA" to eliminate unusuable factor level in the variable representing the exponential for property damage
 
@@ -27,7 +27,7 @@ All column names set to lower case for ease in coding; state columns renamed for
 
 ```{r echo=TRUE, cache=TRUE, message=FALSE, results='asis'}
 library(data.table); library(dplyr); library(lubridate)
-library(xtable)
+library(xtable); library(stringdist)
 options(scipen = 999)
 
 stormdt <- fread("StormData.csv")
@@ -40,7 +40,11 @@ colnames(stormdt)[7] <- "state"
 stormdt$bgn_date <- mdy_hms(stormdt$bgn_date)
 stormdt$end_date <- mdy_hms(stormdt$end_date)
 stormdt <- stormdt[bgn_date >= "1996-01-01"] 
+```
 
+
+
+```{r}
 factordmg <- function(DT){
         DT[propdmgexp == "H" | propdmgexp == "h", propdmg := propdmg * 100]
         DT[propdmgexp == "K" | propdmgexp == "k", propdmg := propdmg * 1000]
@@ -58,7 +62,9 @@ factordmg <- function(DT){
 }
 
 stormdt <- factordmg(stormdt)
+```
 
+```{r}
 stormdt <- stormdt %>% 
         select(fips, state, county, countyname, evtype, 
                bgn_date, bgn_time, end_date, end_time, 
@@ -68,6 +74,46 @@ stormdt <- stormdt %>%
 
 #knitr::kable(head(stormdt), caption = "Working Table")
 ```
+
+
+```{r}
+stormdt$evtype <- tolower(stormdt$evtype)
+stormdt$evtype <- trimws(stormdt$evtype, which = "both")
+stormdt$evtype <- gsub("  ", " ", stormdt$evtype)
+stormdt$evtype <- gsub("^tropical storm wind.*", "tropical storm", stormdt$evtype)
+stormdt$evtype <- gsub("^thunderstorm", "thunderstorm wind", stormdt$evtype)
+stormdt$evtype <- gsub("^tstm wind", "thunderstorm wind",
+                       stormdt$evtype)
+stormdt$evtype <- gsub("surf", "high surf", stormdt$evtype)
+debris <- c("mudslide", "mudslides", "rock slide","landslide","landslides",
+            "erosion","landslump","debris")
+for(d in debris){stormdt$evtype <- gsub(d, "debris flow", stormdt$evtype)}
+
+```
+
+
+```{r}
+setdiff(unique(stormdt$evtype), matchtable)
+
+matchtable <- c("astronomical low tide", "avalanche", "blizzard", "coastal flood",
+                "cold/wind chill", "debris flow", "dense fog", "dense smoke",
+                "drought", "dust devil", "dust storm", "excessive heat", 
+                "extreme cold/wind chill", "flash flood", "flood", "frost/freeze",
+                "funnel cloud", "freezing fog", "hail", "heat", "heavy rain",
+                "heavy snow", "high surf", "high wind", "hurricane(typhoon)", 
+                "ice storm", "lake-effect snow", "lakeshore flood", "lightning",
+                "marine hail", "marine high wind", "marine strong wind", 
+                "marine thunderstorm wind", "rip current", "seiche", "sleet",
+                "storm surge/tide", "strong wind", "thunderstorm wind", "tornado",
+                "tropical depression", "tropical storm", "tsunami",
+                "volcanic ash", "waterspout", "wildfire", "winter storm",
+                "winter weather")
+
+amatch(unique(stormdt$evtype), matchtable, maxDist = 5)
+
+sum(is.na(amatch(unique(stormdt$evtype), matchtable, maxDist = 5)))
+```
+
 
 
 Fatalities by event type:
