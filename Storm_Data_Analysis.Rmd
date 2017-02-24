@@ -27,43 +27,48 @@ All column names set to lower case for ease in coding; state columns renamed for
 
 ```{r echo=TRUE, cache=TRUE, message=FALSE}
 library(data.table); library(dplyr); library(lubridate)
+library(xtable)
 options(scipen = 999)
 
 stormdt <- fread("StormData.csv")
 
 colnames(stormdt) <- tolower(colnames(stormdt))
 colnames(stormdt)[1] <- "fips"
-colnames(stormdt)[7] <- "stateabv" 
+colnames(stormdt)[7] <- "state" 
 
-head(stormdt)
+#change date format
+stormdt$bgn_date <- mdy_hms(stormdt$bgn_date)
+stormdt$end_date <- mdy_hms(stormdt$end_date)
+stormdt <- stormdt[bgn_date >= "1996-01-01"] 
 
-```
-
-Applying the factor level found in propdmgexp to adjacent propdmg column:
-
-```{r, cache=TRUE}
-#Clean for Economic Analysis
-
+#apply damage factor to damage columns
 stormdt[propdmgexp == "H" | propdmgexp == "h", propdmg := propdmg * 100]
 stormdt[propdmgexp == "K" | propdmgexp == "k", propdmg := propdmg * 1000]
 stormdt[propdmgexp == "M" | propdmgexp == "m", propdmg := propdmg * 1E6]
 stormdt[propdmgexp == "B" | propdmgexp == "b", propdmg := propdmg * 1E9]
 
-for(i in 1:9){
-stormdt[propdmgexp == i, propdmg := propdmg * 10^i]
-}
+for(i in 1:9){stormdt[propdmgexp == i, propdmg := propdmg * 10^i]}
 
 stormdt[cropdmgexp == "H" | cropdmgexp == "h", cropdmg := cropdmg * 100]
 stormdt[cropdmgexp == "K" | cropdmgexp == "k", cropdmg := cropdmg * 1000]
 stormdt[cropdmgexp == "M" | cropdmgexp == "m", cropdmg := cropdmg * 1E6]
-stormdt[cropdmgexp == "B" | cropdmgexp == "b", cropdmg := cropdmg * 1E9]
 
-for(i in 1:9){
-stormdt[cropdmgexp == i, cropdmg := cropdmg * 10^i]
-}
+stormdt[cropdmgexp == 0, cropdmg := cropdmg * 10^0]
+stormdt[cropdmgexp == 2, cropdmg := cropdmg * 10^2]
 
+stormdt <- stormdt %>% 
+        select(fips, state, county, countyname, evtype, 
+               bgn_date, bgn_time, end_date, end_time, 
+               length, width, f, mag,
+               fatalities, injuries, propdmg, cropdmg)
+
+print(xtable(head(stormdt), caption = ""), 
+      type = "html", html.table.attributes = "border = 0")
 
 ```
+
+Applying the factor level found in propdmgexp to adjacent propdmg column:
+
 
 Fatalities by event type:
 ```{r}
@@ -83,9 +88,8 @@ event_injuries <- stormdt %>%
         summarise(totalinjuries = sum(injuries)) %>%
         arrange(desc(totalinjuries))
 head(event_injuries, n=10)
-```{r}
 
-```
+```{r}
 
 
 ### Results
