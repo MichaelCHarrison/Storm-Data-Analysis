@@ -19,13 +19,13 @@ Your data analysis must address the following questions:
 
 2. Across the United States, which types of events have the greatest economic consequences?
 
-### Data Processing; cleaning data, analysis
+### Data Processing; cleanianal cleaningysis
 
 Using the read.csv, data is imported, replacing "?" with "NA" to eliminate unusuable factor level in the variable representing the exponential for property damage
 
 All column names set to lower case for ease in coding; state columns renamed for clarity.
 
-```{r echo=TRUE, cache=TRUE, message=FALSE}
+```{r echo=TRUE, cache=TRUE, message=FALSE, results='asis'}
 library(data.table); library(dplyr); library(lubridate)
 library(xtable)
 options(scipen = 999)
@@ -41,55 +41,54 @@ stormdt$bgn_date <- mdy_hms(stormdt$bgn_date)
 stormdt$end_date <- mdy_hms(stormdt$end_date)
 stormdt <- stormdt[bgn_date >= "1996-01-01"] 
 
-#apply damage factor to damage columns
-stormdt[propdmgexp == "H" | propdmgexp == "h", propdmg := propdmg * 100]
-stormdt[propdmgexp == "K" | propdmgexp == "k", propdmg := propdmg * 1000]
-stormdt[propdmgexp == "M" | propdmgexp == "m", propdmg := propdmg * 1E6]
-stormdt[propdmgexp == "B" | propdmgexp == "b", propdmg := propdmg * 1E9]
+factordmg <- function(DT){
+        DT[propdmgexp == "H" | propdmgexp == "h", propdmg := propdmg * 100]
+        DT[propdmgexp == "K" | propdmgexp == "k", propdmg := propdmg * 1000]
+        DT[propdmgexp == "M" | propdmgexp == "m", propdmg := propdmg * 1E6]
+        DT[propdmgexp == "B" | propdmgexp == "b", propdmg := propdmg * 1E9]
+        
+        for(i in 1:9){stormdt[propdmgexp == i, propdmg := propdmg * 10^i]}
+        
+        DT[cropdmgexp == "H" | cropdmgexp == "h", cropdmg := cropdmg * 100]
+        DT[cropdmgexp == "K" | cropdmgexp == "k", cropdmg := cropdmg * 1000]
+        DT[cropdmgexp == "M" | cropdmgexp == "m", cropdmg := cropdmg * 1E6]
+        
+        DT[cropdmgexp == 0, cropdmg := cropdmg * 10^0]
+        DT[cropdmgexp == 2, cropdmg := cropdmg * 10^2]
+}
 
-for(i in 1:9){stormdt[propdmgexp == i, propdmg := propdmg * 10^i]}
-
-stormdt[cropdmgexp == "H" | cropdmgexp == "h", cropdmg := cropdmg * 100]
-stormdt[cropdmgexp == "K" | cropdmgexp == "k", cropdmg := cropdmg * 1000]
-stormdt[cropdmgexp == "M" | cropdmgexp == "m", cropdmg := cropdmg * 1E6]
-
-stormdt[cropdmgexp == 0, cropdmg := cropdmg * 10^0]
-stormdt[cropdmgexp == 2, cropdmg := cropdmg * 10^2]
+stormdt <- factordmg(stormdt)
 
 stormdt <- stormdt %>% 
         select(fips, state, county, countyname, evtype, 
                bgn_date, bgn_time, end_date, end_time, 
                length, width, f, mag,
-               fatalities, injuries, propdmg, cropdmg)
+               fatalities, injuries, propdmg, cropdmg) %>%
+        filter(fatalities > 0 | injuries > 0 | propdmg > 0 | cropdmg > 0)
 
-print(xtable(head(stormdt), caption = ""), 
-      type = "html", html.table.attributes = "border = 0")
-
+#knitr::kable(head(stormdt), caption = "Working Table")
 ```
-
-Applying the factor level found in propdmgexp to adjacent propdmg column:
 
 
 Fatalities by event type:
-```{r}
+```{r cache=TRUE}
 event_fatalities <- stormdt %>%
         group_by(evtype) %>%
         summarise(totalfatalities = sum(fatalities)) %>%
         arrange(desc(totalfatalities))
-print(head(event_fatalities, n=10))
-
 ```
 
 Injuries by event type:
 
-```{r}
+```{r cache=TRUE}
 event_injuries <- stormdt %>%
         group_by(evtype) %>%
         summarise(totalinjuries = sum(injuries)) %>%
         arrange(desc(totalinjuries))
-head(event_injuries, n=10)
 
-```{r}
+
+```
+
 
 
 ### Results
