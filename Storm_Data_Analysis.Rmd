@@ -36,7 +36,7 @@ colnames(stormdt) <- tolower(colnames(stormdt))
 colnames(stormdt)[1] <- "fips"
 colnames(stormdt)[7] <- "state" 
 
-#change date format
+#change date formats
 stormdt$bgn_date <- mdy_hms(stormdt$bgn_date)
 stormdt$end_date <- mdy_hms(stormdt$end_date)
 stormdt <- stormdt[bgn_date >= "1996-01-01"] 
@@ -80,21 +80,39 @@ stormdt <- stormdt %>%
 stormdt$evtype <- tolower(stormdt$evtype)
 stormdt$evtype <- trimws(stormdt$evtype, which = "both")
 stormdt$evtype <- gsub("  ", " ", stormdt$evtype)
-stormdt$evtype <- gsub("^tropical storm wind.*", "tropical storm", stormdt$evtype)
-stormdt$evtype <- gsub("^thunderstorm", "thunderstorm wind", stormdt$evtype)
-stormdt$evtype <- gsub("^tstm wind", "thunderstorm wind",
+stormdt$evtype <- gsub("^tstm wind.*", "thunderstorm wind", stormdt$evtype)
+stormdt$evtype <- gsub("^thunderstorm.*", "thunderstorm wind", stormdt$evtype)
+stormdt$evtype <- gsub("^hurricane.*", "hurricane(typhoon)", stormdt$evtype)
+stormdt$evtype <- gsub("^typhoon.*", "hurricane(typhoon)", stormdt$evtype)
+stormdt$evtype <- gsub("^high wind.*", "high wind", stormdt$evtype)
+
+
+```
+
+```{r}
+stormdt$evtype <- gsub("^gust.*", "marine high wind", stormdt$evtype)
+stormdt$evtype <- gsub("*.surf.* | astronomical high.*", "high surf",
                        stormdt$evtype)
-stormdt$evtype <- gsub("surf", "high surf", stormdt$evtype)
-debris <- c("mudslide", "mudslides", "rock slide","landslide","landslides",
-            "erosion","landslump","debris")
+stormdt$evtype <- gsub("^non.*", "high wind", stormdt$evtype)
+stormdt$evtype <- gsub("*.fire.*", "wildfire", stormdt$evtype)
+# stormdt$evtype <- gsub("*.ice.*", )
+
+debris <- c("mudslide", "mud slide", "mudslides", "rock slide",
+            "landslide","landslides", "erosion","landslump", 
+            "debris")
 for(d in debris){stormdt$evtype <- gsub(d, "debris flow", stormdt$evtype)}
+stormdt$evtype <- gsub(paste("^*.", debris, ".*", sep = "", collapse = "|"), 
+                       "debris flow", stormdt$evtype)
+
+```
+
+```{r}
+stormdt$evtype <- gsub("^tropical storm wind.*", "tropical storm", stormdt$evtype)
 
 ```
 
 
 ```{r}
-setdiff(unique(stormdt$evtype), matchtable)
-
 matchtable <- c("astronomical low tide", "avalanche", "blizzard", "coastal flood",
                 "cold/wind chill", "debris flow", "dense fog", "dense smoke",
                 "drought", "dust devil", "dust storm", "excessive heat", 
@@ -108,6 +126,8 @@ matchtable <- c("astronomical low tide", "avalanche", "blizzard", "coastal flood
                 "tropical depression", "tropical storm", "tsunami",
                 "volcanic ash", "waterspout", "wildfire", "winter storm",
                 "winter weather")
+
+setdiff(unique(stormdt$evtype), matchtable)
 
 amatch(unique(stormdt$evtype), matchtable, maxDist = 5)
 
