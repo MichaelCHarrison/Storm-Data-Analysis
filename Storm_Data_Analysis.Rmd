@@ -27,7 +27,7 @@ All column names set to lower case for ease in coding; state columns renamed for
 
 ```{r echo=TRUE, cache=TRUE, message=FALSE, results='asis'}
 library(data.table); library(dplyr); library(lubridate)
-library(xtable); library(stringdist)
+library(xtable); library(ggplot2)
 options(scipen = 999)
 
 stormdt <- fread("StormData.csv")
@@ -115,6 +115,8 @@ stormdt$evtype <- gsub(".*warm weather.*", "heat", stormdt$evtype)
 stormdt$evtype <- gsub(".*winds.*", "high wind", stormdt$evtype)
 stormdt$evtype <- gsub("^wind$", "high wind", stormdt$evtype)
 stormdt$evtype <- gsub(".*excessive snow*", "blizzard", stormdt$evtype)
+stormdt$evtype <- gsub("^snow$", "heavy snow", stormdt$evtype)
+stormdt$evtype <- gsub(".*late season snow.*", "heavy snow", stormdt$evtype)
 
         
 
@@ -158,7 +160,8 @@ debris <- c("mudslide", "mud slide", "mudslides", "rock slide",
 for(d in debris){stormdt$evtype <- gsub(paste(".*", d, ".*", sep = ""), 
                                         "debris flow", stormdt$evtype)}
 
-
+stormdt <- stormdt[stormdt$evtype != "other" & stormdt$evtype != "drowning",]
+stormdt$evtype <- as.factor(stormdt$evtype)
 ```
 
 
@@ -178,8 +181,23 @@ matchtable <- c("astronomical low tide", "avalanche", "blizzard", "coastal flood
                 "volcanic ash", "waterspout", "wildfire", "winter storm",
                 "winter weather")
 
-setdiff <- setdiff(unique(stormdt$evtype), matchtable)
-setdiff
+```
+
+```{r}
+#summary(stormdt)
+```
+
+
+Making some plots:
+
+```{r}
+evtype_hist <- qplot(stormdt$evtype,
+                     main = "Event Type Frequency accross USA",
+                     xlab = "Event Type",
+                     ylab = "Count")
+evtype_hist + 
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
 ```
 
 
@@ -190,7 +208,19 @@ event_fatalities <- stormdt %>%
         group_by(evtype) %>%
         summarise(totalfatalities = sum(fatalities)) %>%
         arrange(desc(totalfatalities))
+
+ggplot(event_fatalities, aes(evtype, totalfatalities)) + 
+        geom_bar(stat = "sum") +
+        labs(title = "Fatalities by Event Type", 
+             x = "Event Type", y = "Total Fatalities") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
 ```
+
+```{r}
+head(event_fatalities)
+```
+
 
 Injuries by event type:
 
@@ -200,9 +230,16 @@ event_injuries <- stormdt %>%
         summarise(totalinjuries = sum(injuries)) %>%
         arrange(desc(totalinjuries))
 
-
+ggplot(event_injuries, aes(evtype, totalinjuries)) + 
+        geom_bar(stat = "sum") +
+        labs(Title = "Injuries by Event Type", 
+             x = "Event Type", y = "Total Injuries") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
+```{r}
+head(event_injuries)
+```
 
 
 ### Results
