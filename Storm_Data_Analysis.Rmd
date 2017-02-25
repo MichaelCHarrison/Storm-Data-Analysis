@@ -85,25 +85,44 @@ stormdt$evtype <- gsub("^thunderstorm.*", "thunderstorm wind", stormdt$evtype)
 stormdt$evtype <- gsub("^hurricane.*", "hurricane(typhoon)", stormdt$evtype)
 stormdt$evtype <- gsub("^typhoon.*", "hurricane(typhoon)", stormdt$evtype)
 stormdt$evtype <- gsub("^high wind.*", "high wind", stormdt$evtype)
+stormdt$evtype <- gsub("^gust.*", "marine high wind", stormdt$evtype)
+stormdt$evtype <- gsub("^non.*", "high wind", stormdt$evtype)
+stormdt$evtype <- gsub(".*fire.*", "wildfire", stormdt$evtype)
+stormdt$evtype <- gsub(".*surf.*", "high surf", stormdt$evtype)
+stormdt$evtype <- gsub(".*coastal flooding.*", "coastal flood", stormdt$evtype)
+stormdt$evtype <- gsub("gradient wind", "tropcial depression", stormdt$evtype)
+stormdt$evtype <- gsub("landspout", "dust devil", stormdt$evtype)
+stormdt$evtype <- gsub("lake effect snow", "lake-effect snow", stormdt$evtype)
 
 
+flood <- c("flood", "dam", "ice jam", "fld", "river flood", "lakeshore flood", 
+           "river flooding")
+for(f in flood){stormdt$evtype <- gsub(paste(".*", f, ".*", sep=""),
+                                       "flood", stormdt$evtype)}
+
+ff <- c("freeze", "hard freeze", "agricultural freeze", "frost")
+for(f in ff){stormdt$evtype <- gsub(paste(".*", f, ".*", sep=""), "frost/freeze",
+                                    stormdt$evtype)}
+
+winterweather <- c("freezing", "black ice", "icy", "ice roads", "ice on road",
+                   "light snow", "snow squall", "wintry", "winter", "snow and ice",
+                   "rain/snow")
+for(w in winterweather){stormdt$evtype <- gsub(paste(".*", w, ".*", sep=""),
+                                               "winter weather", stormdt$evtype)}
+
+heat <- c("heat wave", "heat", "record heat", "record excessive heat",
+          "hyperthermia")
+for(h in heat){stormdt$evtype <- gsub(paste(".*", h, ".*", sep = "",
+                                            "excessive heat", stormdt$evtype)}
+
+debris <- c("mudslide", "mud slide", "mudslides", "rock slide",
+            "landslide","landslides", "erosion","landslump", "debris")
+for(d in debris){stormdt$evtype <- gsub(paste(".*", d, ".*", sep = ""), 
+                                        "debris flow", stormdt$evtype)}
 ```
 
 ```{r}
-stormdt$evtype <- gsub("^gust.*", "marine high wind", stormdt$evtype)
-stormdt$evtype <- gsub("*.surf.* | astronomical high.*", "high surf",
-                       stormdt$evtype)
-stormdt$evtype <- gsub("^non.*", "high wind", stormdt$evtype)
-stormdt$evtype <- gsub("*.fire.*", "wildfire", stormdt$evtype)
-# stormdt$evtype <- gsub("*.ice.*", )
-
-debris <- c("mudslide", "mud slide", "mudslides", "rock slide",
-            "landslide","landslides", "erosion","landslump", 
-            "debris")
-for(d in debris){stormdt$evtype <- gsub(d, "debris flow", stormdt$evtype)}
-stormdt$evtype <- gsub(paste("^*.", debris, ".*", sep = "", collapse = "|"), 
-                       "debris flow", stormdt$evtype)
-
+# stormdt$evtype <- gsub(".*ice.*", )
 ```
 
 ```{r}
@@ -127,11 +146,11 @@ matchtable <- c("astronomical low tide", "avalanche", "blizzard", "coastal flood
                 "volcanic ash", "waterspout", "wildfire", "winter storm",
                 "winter weather")
 
-setdiff(unique(stormdt$evtype), matchtable)
+setdiff <- setdiff(unique(stormdt$evtype), matchtable)
+setdiff
+#amatch(unique(stormdt$evtype), matchtable, maxDist = 5)
 
-amatch(unique(stormdt$evtype), matchtable, maxDist = 5)
-
-sum(is.na(amatch(unique(stormdt$evtype), matchtable, maxDist = 5)))
+#sum(is.na(amatch(unique(stormdt$evtype), matchtable, maxDist = 5)))
 ```
 
 
