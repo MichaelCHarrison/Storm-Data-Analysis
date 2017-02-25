@@ -93,6 +93,16 @@ stormdt$evtype <- gsub(".*coastal flooding.*", "coastal flood", stormdt$evtype)
 stormdt$evtype <- gsub("gradient wind", "tropcial depression", stormdt$evtype)
 stormdt$evtype <- gsub("landspout", "dust devil", stormdt$evtype)
 stormdt$evtype <- gsub("lake effect snow", "lake-effect snow", stormdt$evtype)
+stormdt$evtype <- gsub("tropcial depression", "tropical depression", stormdt$evtype)
+stormdt$evtype <- gsub("marine tstm wind", "marine thunderstorm wind",
+                       stormdt$evtype)
+stormdt$evtype <- gsub("glaze", "freezing fog", stormdt$evtype)
+stormdt$evtype <- gsub("^tropical storm wind.*", "tropical storm", stormdt$evtype)
+stormdt$evtype <- gsub(".*rain.*", "heavy rain", stormdt$evtype)
+stormdt$evtype <- gsub(".*microburst.*", "thunderstorm wind", stormdt$evtype)
+stormdt$evtype <- gsub(".*whirlwind.*", "thunderstorm wind", stormdt$evtype)
+stormdt$evtype <- gsub(".*downburst.*", "thunderstorm wind", stormdt$evtype)
+
 
 
 flood <- c("flood", "dam", "ice jam", "fld", "river flood", "lakeshore flood", 
@@ -106,14 +116,24 @@ for(f in ff){stormdt$evtype <- gsub(paste(".*", f, ".*", sep=""), "frost/freeze"
 
 winterweather <- c("freezing", "black ice", "icy", "ice roads", "ice on road",
                    "light snow", "snow squall", "wintry", "winter", "snow and ice",
-                   "rain/snow")
+                   "rain/snow", "cold and snow", "mixed precip", "falling snow/ice")
 for(w in winterweather){stormdt$evtype <- gsub(paste(".*", w, ".*", sep=""),
                                                "winter weather", stormdt$evtype)}
 
 heat <- c("heat wave", "heat", "record heat", "record excessive heat",
-          "hyperthermia")
-for(h in heat){stormdt$evtype <- gsub(paste(".*", h, ".*", sep = "",
-                                            "excessive heat", stormdt$evtype)}
+          "hyperthermia", "unseasonably warm")
+for(h in heat){stormdt$evtype <- gsub(paste(".*", h, ".*", sep = ""),
+                                      "excessive heat", stormdt$evtype)}
+
+cold <- c("extreme cold", "unseasonable cold", "extended cold", "unseasonably cold")
+for(c in cold){stormdt$evtype <- gsub(paste(".*", c, ".*", sep = ""),
+                                      "extreme cold/wind chill", stormdt$evtype)}
+
+seas <- c("heavy seas", "high seas", "rough seas", "rip currents", "wind and wave",
+          "rogue wave", "high swells", "marine accident")
+for(s in seas){stormdt$evtype <- gsub(paste(".*", s, ".*", sep=""), "high surf",
+                                      stormdt$evtype)}
+
 
 debris <- c("mudslide", "mud slide", "mudslides", "rock slide",
             "landslide","landslides", "erosion","landslump", "debris")
@@ -125,10 +145,6 @@ for(d in debris){stormdt$evtype <- gsub(paste(".*", d, ".*", sep = ""),
 # stormdt$evtype <- gsub(".*ice.*", )
 ```
 
-```{r}
-stormdt$evtype <- gsub("^tropical storm wind.*", "tropical storm", stormdt$evtype)
-
-```
 
 
 ```{r}
