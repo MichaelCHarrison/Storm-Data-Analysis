@@ -72,7 +72,7 @@ stormdt <- stormdt %>%
                fatalities, injuries, propdmg, cropdmg) %>%
         filter(fatalities > 0 | injuries > 0 | propdmg > 0 | cropdmg > 0)
 
-#knitr::kable(head(stormdt), caption = "Working Table")
+
 ```
 
 
@@ -118,7 +118,7 @@ stormdt$evtype <- gsub(".*excessive snow*", "blizzard", stormdt$evtype)
 stormdt$evtype <- gsub("^snow$", "heavy snow", stormdt$evtype)
 stormdt$evtype <- gsub(".*late season snow.*", "heavy snow", stormdt$evtype)
 
-        
+
 
 flood <- c("flood", "dam", "ice jam", "fld", "river flood", "lakeshore flood", 
            "river flooding", "high water")
@@ -196,7 +196,8 @@ evtype_hist <- qplot(stormdt$evtype,
                      xlab = "Event Type",
                      ylab = "Count")
 evtype_hist + 
-        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+        theme(axis.text.x = element_text(angle = 45, hjust = 1),
+              plot.title = element_text(hjust = 0.5))
 
 ```
 
@@ -213,12 +214,13 @@ ggplot(event_fatalities, aes(evtype, totalfatalities)) +
         geom_bar(stat = "sum") +
         labs(title = "Fatalities by Event Type", 
              x = "Event Type", y = "Total Fatalities") +
-        theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
+        theme(axis.text.x = element_text(angle = 45, hjust = 1),
+              plot.title = element_text(hjust = 0.5))
 ```
 
 ```{r}
-head(event_fatalities)
+knitr::kable(head(event_fatalities), caption = "Working Table")
+#head(event_fatalities)
 ```
 
 
@@ -232,14 +234,46 @@ event_injuries <- stormdt %>%
 
 ggplot(event_injuries, aes(evtype, totalinjuries)) + 
         geom_bar(stat = "sum") +
-        labs(Title = "Injuries by Event Type", 
+        labs(title = "Injuries by Event Type", 
              x = "Event Type", y = "Total Injuries") +
-        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+        theme(axis.text.x = element_text(angle = 45, hjust = 1),
+              plot.title = element_text(hjust = 0.5))
 ```
 
 ```{r}
 head(event_injuries)
 ```
 
+
+```{r}
+event_propdmg <- stormdt %>% 
+        group_by(evtype) %>%
+        summarise(totalpropdmg = sum(propdmg)) %>%
+        mutate(totalpropdmg = totalpropdmg / 1E9)
+
+ggplot(event_propdmg, aes(evtype, totalpropdmg)) +
+        geom_bar(stat = "sum") +
+        labs(title = "Total Property Damage by Event Type",
+             x = "Event Type", y = "Total Damage") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1),
+              plot.title = element_text(hjust = 0.5))
+        
+```
+
+
+
+```{r}
+event_cropdmg <- stormdt %>% 
+        group_by(evtype) %>%
+        summarise(totalcropdmg = sum(cropdmg)) %>%
+        mutate(totalcropdmg = totalcropdmg / 1E9)
+
+ggplot(event_cropdmg, aes(evtype, totalcropdmg)) +
+        geom_bar(stat = "sum") +
+        labs(title = "Total Crop Damage by Event Type",
+             x = "Event Type", y = "Total Damage (Billions)") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1),
+              plot.title = element_text(hjust = 0.5))
+```
 
 ### Results
