@@ -20,11 +20,11 @@ Your data analysis must address the following questions:
 2. Across the United States, which types of events have the greatest economic consequences?
 
 ## Data Processing
-#### Data cleaning
+### Cleaning
 
-Data cleaning and organization will depend upon the following packages: data.table, dplyr, lubridate, and ggplot2(which is loaded later in the analysis to avoid masking issues with dplyr). Data from csv file read in using fread function of the data.table package for speed. All column names are set to lower case for ease in scripting; state columns renamed for clarity. Dates are transformed using the lubridate package function to set column to unambiguous date format. Data is then subset by date, starting on the first of January 1996, as 
+Data cleaning and organization will depend upon the following packages: data.table, dplyr, lubridate, and ggplot2(which is loaded later in the analysis to avoid masking issues with dplyr). Data from csv file read in using fread function of the data.table package for speed. All column names are set to lower case for ease in scripting; state columns renamed for clarity. Dates are transformed using the lubridate package function to set column to unambiguous date format. Data is then subset by date, starting on the first of January 1996, as NOAA began recording all event types.
 
-```{NOAA began recording all event types.r echo=TRUE, cache=TRUE, message=FALSE, results='hide'}
+```{r echo=TRUE, cache=TRUE, message=FALSE, results='hide'}
 library(data.table); library(dplyr); 
 library(lubridate); 
 options(scipen = 999)
@@ -40,10 +40,10 @@ stormdt$bgn_date <- mdy_hms(stormdt$bgn_date)
 stormdt$end_date <- mdy_hms(stormdt$end_date)
 stormdt <- stormdt[bgn_date >= "1996-01-01"] 
 ```
+<br>
+The following script takes the factor of property and crop damage and applies it to the damage standardize the value. 
 
-
-
-```{The following script take the factor of property and crop damage and applies it to the damage standardize the value. r}
+```{r}
 factordmg <- function(DT){
         DT[propdmgexp == "H" | propdmgexp == "h", propdmg := propdmg * 100]
         DT[propdmgexp == "K" | propdmgexp == "k", propdmg := propdmg * 1000]
@@ -61,22 +61,32 @@ factordmg <- function(DT){
 stormdt <- factordmg(stormdt)
 ```
 
-```{r}The data is reshaped to eliminate column variables unneeded for the purposes of the analysis using the select function of dplyr. The data is then filtered to remove records where fatalities, injuries, property damage, or crop damage amounted to zero.
+Create new datetime columns for event begining and event ending.
 
+```{r}
+stormdt$bgn_datetime <- as.POSIXct(paste(stormdt$bgn_date, stormdt$end_time),
+                                   format = "%Y-%m-%d %H:%M:%S")
+stormdt$end_datetime <- as.POSIXct(paste(stormdt$end_date, stormdt$end_time),
+                                   format = "%Y-%m-%d %H:%M:%S")
+```
 
+<br>
+The data is reshaped to eliminate column variables unneeded for the purposes of the analysis using the select function of dplyr. The data is then filtered to remove records where fatalities, injuries, property damage, or crop damage amounted to zero.
+
+```{r}
 stormdt <- stormdt %>% 
         select(fips, state, county, countyname, evtype, 
-               bgn_date, bgn_time, end_date, end_time, 
+               bgn_datetime, end_datetime, 
                length, width, f, mag,
                fatalities, injuries, propdmg, cropdmg) %>%
         filter(fatalities > 0 | injuries > 0 | propdmg > 0 | cropdmg > 0)
 
 
 ```
+<br>
+Examining the unique values in the evtype variable returns nearly 1000 types of events, though has a set list of 48 event types for recording purposes. A variety of non-standard event types recorded and typo make up wide range of event types. The values stored in the evtype column were corrected to fit the standard 48 through cross referencing the NOAA storm database analysis handbook.
 
-#
-```{Examining the unique values in the evtype variable returns nearly 1000 types of events, though has a set list of 48 event types for recording purposes. A variety of non-standard event types recorded and typo make up wide range of event types. The values stored in the evtype column were corrected to fit the standard 48 through cross referencing the NOAA storm database analysis handbook.}
-
+```{r}
 stormdt$evtype <- tolower(stormdt$evtype)
 stormdt$evtype <- trimws(stormdt$evtype, which = "both")
 stormdt$evtype <- gsub("  ", " ", stormdt$evtype)
@@ -178,10 +188,16 @@ for(d in debris){stormdt$evtype <- gsub(paste(".*", d, ".*", sep = ""),
                                         "debris flow", stormdt$evtype)}
 
 ```
+<br>
+Decision was made to eliminate evtype values that did not have clear relationship to standard 48; these events("other" amd "drowning") were only present in 1 record respectively. 
 
 ```{r}
 stormdt <- stormdt[stormdt$evtype != "other" & stormdt$evtype != "drowning",]
+```
+<br>
+For presentation's sake, names of event types are capitalized.
 
+```{r}
 evtype_capitalize <- function(x) {
         s <- strsplit(x, " ")[[1]]
         paste(toupper(substring(s, 1,1)), substring(s, 2), sep="", collapse=" ")
@@ -190,28 +206,9 @@ evtype_capitalize <- function(x) {
 stormdt$evtype <- sapply(stormdt$evtype, evtype_capitalize)
 ```
 
+###Analysis
 
-
-```{r}
-matchtable <- c("astronomical low tide", "avalanche", "blizzard", "coastal flood",
-                "cold/wind chill", "debris flow", "dense fog", "dense smoke",
-                "drought", "dust devil", "dust storm", "excessive heat", 
-                "extreme cold/wind chill", "flash flood", "flood", "frost/freeze",
-                "funnel cloud", "freezing fog", "hail", "heat", "heavy rain",
-                "heavy snow", "high surf", "high wind", "hurricane(typhoon)", 
-                "ice storm", "lake-effect snow", "lakeshore flood", "lightning",
-                "marine hail", "marine high wind", "marine strong wind", 
-                "marine thunderstorm wind", "rip current", "seiche", "sleet",
-                "storm surge/tide", "strong wind", "thunderstorm wind", "tornado",
-                "tropical depression", "tropical storm", "tsunami",
-                "volcanic ash", "waterspout", "wildfire", "winter storm",
-                "winter weather")
-
-```
-
-
-
-#Making some plots:
+All visualizations for storm data will be generated using the ggplot2 package from Hadley Wickman, begining with a histogram showing the event type counts for the time frame of January 1, 1996 to November 30, 2011.
 
 ```{r}
 library(ggplot2); 
@@ -224,14 +221,19 @@ evtype_hist +
               plot.title = element_text(hjust = 0.5))
 
 ```
-
+<br>
+Table reflecting the values of top 6 events by count:
 ```{r}
 knitr::kable(head(count(stormdt, evtype) %>% arrange(desc(n))),
-             caption = "Event Counts", col.names = c("Event", "Count"))
+             caption = "Event Counts 1996-2011", col.names = c("Event", "Count"))
 ```
 
+<br>
+#### Examining impact on health by event type 
 
-##Fatalities by event type:
+For the purposes of calculation, a timeframe variable is created using the difftime function with units set to "weeks", the value of function then divded by 52.25 (accounting for the impact of leap years) to set the unit it years. The returned value is then coerced to a numeric value for computation.
+
+A new data.table is created by grouping the data by event type, creating summary statistics for total fatalities, mortatity by event occurence, number of occurences, and finally occurences of a given event type by year (calculated with timeframe variable). ggplot() is employed to visualize total fatalities by event.
 
 ```{r cache=TRUE}
 timeframe <- as.numeric(difftime(max(stormdt$bgn_date), min(stormdt$bgn_date), 
@@ -253,16 +255,55 @@ ggplot(event_fatalities, aes(evtype, totalfatalities)) +
               plot.title = element_text(hjust = 0.5),
               legend.position = "none")
 ```
+<br>
+Table below expands on the data visualized above:
+
 ```{r results = "asis"}
 knitr::kable(head(event_fatalities), caption = "Total Fatalities by Event",
              col.names = c("Event", "Total Fatalities",
                            "Mortality (by occurence)", "Occurences", 
-                           "Occurences per Year"))
+                           "Yearly rate of occurence"))
 
+```
+<br>
+By the visualization and table above, the 3 event types which have the greatest impact of mortality are: Excessive Heat, Tornado, and Flood. The impact of these events will be further examined.
+
+<br>
+##### Excessive Heat
+- most impacted states
+- count by month
+
+```{r}
+excessive_heat <- stormdt[which(stormdt$evtype == "Excessive Heat"),]
+nrow(excessive_heat)
 ```
 
 
-##Injuries by event type:
+<br>
+##### Tornado
+
+-summary stats: duration, widtch, avg damage by F type, avg damage by width, avg damage by length, state with most torandos(damage by year)
+-visualizaitons: 
+
+```{r}
+tornado <- stormdt[which(stormdt$evtype == "Tornado"),]
+nrow(tornado)
+```
+
+
+<br>
+##### Flood
+
+```{r}
+flood <- stormdt[which(stormdt$evtype == "Flood"),]
+nrow(flood)
+```
+
+
+<br>
+#### Examining Injuries by event type:
+
+Summary dataset is generated through grouping data by event type, summarising total injuries, injuries sustained by occurence of event, number of event occurences, and occurences by year. ggplot2 is used to visualize the total number of injuries by event type.
 
 ```{r cache=TRUE}
 event_injuries <- stormdt %>%
@@ -282,14 +323,18 @@ ggplot(event_injuries, aes(evtype, totalinjuries)) +
               legend.position = "none")
 ```
 
+Table below expands on the data visualized above: 
+
 ```{r}
 knitr::kable(head(event_injuries), caption = "Total Injuries by Event since 1996",
              col.names = c("Event", "Total Injuries", "Injuries per Occurence", 
                            "Occurences", "Occurences per Year"))
+
 ```
+#### Economic Impact
 
+#####Property Damage
 
-# Summary stats for prop and crop damage
 ```{r}
 event_propdmg <- stormdt %>% 
         group_by(evtype) %>%
@@ -311,12 +356,30 @@ ggplot(event_propdmg, aes(evtype, totalpropdmg)) +
         
 ```
 
+Table below expands upon property damage by event type
 ```{r}
 knitr::kable(head(event_propdmg), caption = "Property Damage by Event since 1996",
              col.names = c("Event", "Damage (in Billions)",
                            "Average Damage (in Millions)","Occurences", 
                            "Occurences per Year"))
 ```
+
+#####Flood
+
+
+
+<br>
+#####Hurricane
+
+
+
+<br>
+#####Storm Surge
+
+
+
+
+#####Crop Damage
 
 ```{r}
 event_cropdmg <- stormdt %>% 
@@ -338,11 +401,20 @@ ggplot(event_cropdmg, aes(evtype, totalcropdmg), fill = evtype) +
               legend.position = "none")
 ```
 
+Table below expands upon crop damage.
+
 ```{r}
 knitr::kable(head(event_cropdmg), caption = "Crop Damage by Event",
              col.names = c("Event", "Total Damage (in Billions)",
                            "Damage per Occurence (in Millions)", "Occurences",
                            "Occurences per Year"))
+
 ```
+
+#####Drought
+
+#####Flood
+
+#####Hurricane
 
 ### Results
