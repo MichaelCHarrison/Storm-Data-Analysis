@@ -340,7 +340,7 @@ evtype_hist +
 </tr>
 </tbody>
 </table>
-<p><br> #### Examining impact on health by event type</p>
+<p><br> ####Examining impact on health by event type</p>
 <p>For the purposes of calculation, a timeframe variable is created using the difftime function with units set to “weeks”, the value of function then divded by 52.25 (accounting for the impact of leap years) to set the unit it years. The returned value is then coerced to a numeric value for computation.</p>
 <p>A new data.table is created by grouping the data by event type, creating summary statistics for total fatalities, mortatity by event occurence, number of occurences, and finally occurences of a given event type by year (calculated with timeframe variable). ggplot() is employed to visualize total fatalities by event.</p>
 <pre class="r"><code>timeframe &lt;- as.numeric(difftime(max(stormdt$bgn_date), min(stormdt$bgn_date), 

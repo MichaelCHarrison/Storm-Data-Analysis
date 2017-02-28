@@ -3,8 +3,9 @@ title: "NOAA Storm Database Analysis"
 author: "Michael Harrison"
 date: "February 22, 2017"
 output:
+  pdf_document: 
+    latex_engine: xelatex
   html_document: default
-  pdf_document: default
 ---
 
 ##Introduction
@@ -229,7 +230,7 @@ knitr::kable(head(count(stormdt, evtype) %>% arrange(desc(n))),
 ```
 
 <br>
-#### Examining impact on health by event type 
+####Examining impact on health by event type 
 
 For the purposes of calculation, a timeframe variable is created using the difftime function with units set to "weeks", the value of function then divded by 52.25 (accounting for the impact of leap years) to set the unit it years. The returned value is then coerced to a numeric value for computation.
 
