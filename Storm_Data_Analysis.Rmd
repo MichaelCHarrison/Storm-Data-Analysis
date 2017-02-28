@@ -26,8 +26,8 @@ Using the read.csv, data is imported, replacing "?" with "NA" to eliminate unusu
 All column names set to lower case for ease in coding; state columns renamed for clarity.
 
 ```{r echo=TRUE, cache=TRUE, message=FALSE, results='asis'}
-library(data.table); library(dplyr); library(lubridate)
-library(xtable); library(ggplot2)
+library(data.table); library(dplyr); 
+library(lubridate); 
 options(scipen = 999)
 
 stormdt <- fread("StormData.csv")
@@ -50,13 +50,11 @@ factordmg <- function(DT){
         DT[propdmgexp == "K" | propdmgexp == "k", propdmg := propdmg * 1000]
         DT[propdmgexp == "M" | propdmgexp == "m", propdmg := propdmg * 1E6]
         DT[propdmgexp == "B" | propdmgexp == "b", propdmg := propdmg * 1E9]
-        
         for(i in 1:9){stormdt[propdmgexp == i, propdmg := propdmg * 10^i]}
         
         DT[cropdmgexp == "H" | cropdmgexp == "h", cropdmg := cropdmg * 100]
         DT[cropdmgexp == "K" | cropdmgexp == "k", cropdmg := cropdmg * 1000]
         DT[cropdmgexp == "M" | cropdmgexp == "m", cropdmg := cropdmg * 1E6]
-        
         DT[cropdmgexp == 0, cropdmg := cropdmg * 10^0]
         DT[cropdmgexp == 2, cropdmg := cropdmg * 10^2]
 }
@@ -75,65 +73,80 @@ stormdt <- stormdt %>%
 
 ```
 
-
+#
 ```{r}
 stormdt$evtype <- tolower(stormdt$evtype)
 stormdt$evtype <- trimws(stormdt$evtype, which = "both")
 stormdt$evtype <- gsub("  ", " ", stormdt$evtype)
 stormdt$evtype <- gsub("^tstm wind.*", "thunderstorm wind", stormdt$evtype)
-stormdt$evtype <- gsub("^thunderstorm.*", "thunderstorm wind", stormdt$evtype)
-stormdt$evtype <- gsub("^hurricane.*", "hurricane(typhoon)", stormdt$evtype)
+stormdt$evtype <- gsub("^thunderstorm.*", "thunderstorm wind",
+                       stormdt$evtype)
+stormdt$evtype <- gsub("^hurricane.*", "hurricane(typhoon)",
+                       stormdt$evtype)
 stormdt$evtype <- gsub("^typhoon.*", "hurricane(typhoon)", stormdt$evtype)
 stormdt$evtype <- gsub("^high wind.*", "high wind", stormdt$evtype)
 stormdt$evtype <- gsub("^gust.*", "marine high wind", stormdt$evtype)
 stormdt$evtype <- gsub("^non.*", "high wind", stormdt$evtype)
 stormdt$evtype <- gsub(".*fire.*", "wildfire", stormdt$evtype)
 stormdt$evtype <- gsub(".*surf.*", "high surf", stormdt$evtype)
-stormdt$evtype <- gsub(".*astronomical high tide.*", "high surf", stormdt$evtype)
-stormdt$evtype <- gsub(".*coastal flooding.*", "coastal flood", stormdt$evtype)
-stormdt$evtype <- gsub("gradient wind", "tropcial depression", stormdt$evtype)
+stormdt$evtype <- gsub(".*astronomical high tide.*", "high surf",
+                       stormdt$evtype)
+stormdt$evtype <- gsub(".*coastal flooding.*", "coastal flood",
+                       stormdt$evtype)
+stormdt$evtype <- gsub("gradient wind", "tropcial depression",
+                       stormdt$evtype)
 stormdt$evtype <- gsub("landspout", "dust devil", stormdt$evtype)
-stormdt$evtype <- gsub("lake effect snow", "lake-effect snow", stormdt$evtype)
-stormdt$evtype <- gsub("tropcial depression", "tropical depression", stormdt$evtype)
+stormdt$evtype <- gsub("lake effect snow", "lake-effect snow",
+                       stormdt$evtype)
+stormdt$evtype <- gsub("tropcial depression", "tropical depression",
+                       stormdt$evtype)
 stormdt$evtype <- gsub("marine tstm wind", "marine thunderstorm wind",
                        stormdt$evtype)
 stormdt$evtype <- gsub("glaze", "freezing fog", stormdt$evtype)
-stormdt$evtype <- gsub("^tropical storm wind.*", "tropical storm", stormdt$evtype)
+stormdt$evtype <- gsub("^tropical storm wind.*", "tropical storm",
+                       stormdt$evtype)
 stormdt$evtype <- gsub(".*rain.*", "heavy rain", stormdt$evtype)
-stormdt$evtype <- gsub(".*microburst.*", "thunderstorm wind", stormdt$evtype)
-stormdt$evtype <- gsub(".*whirlwind.*", "thunderstorm wind", stormdt$evtype)
-stormdt$evtype <- gsub(".*downburst.*", "thunderstorm wind", stormdt$evtype)
+stormdt$evtype <- gsub(".*microburst.*", "thunderstorm wind",
+                       stormdt$evtype)
+stormdt$evtype <- gsub(".*whirlwind.*", "thunderstorm wind",
+                       stormdt$evtype)
+stormdt$evtype <- gsub(".*downburst.*", "thunderstorm wind",
+                       stormdt$evtype)
 stormdt$evtype <- gsub(".*small hail.*", "hail", stormdt$evtype)
 stormdt$evtype <- gsub(".*blowing dust.*", "dust storm", stormdt$evtype)
 stormdt$evtype <- gsub(".*fog.*", "dense fog", stormdt$evtype)
-stormdt$evtype <- gsub(".*coastalstorm.*", "tropical storm", stormdt$evtype)
-stormdt$evtype <- gsub(".*coastal storm.*", "tropical storm", stormdt$evtype)
+stormdt$evtype <- gsub(".*coastalstorm.*", "tropical storm",
+                       stormdt$evtype)
+stormdt$evtype <- gsub(".*coastal storm.*", "tropical storm",
+                       stormdt$evtype)
 stormdt$evtype <- gsub(".*strong winds.*", "strong wind", stormdt$evtype)
-stormdt$evtype <- gsub(".*heavy snow shower.*", "heavy snow", stormdt$evtype)
-stormdt$evtype <- gsub(".*storm surge.*", "storm surge/tide", stormdt$evtype)
+stormdt$evtype <- gsub(".*heavy snow shower.*", "heavy snow",
+                       stormdt$evtype)
+stormdt$evtype <- gsub(".*storm surge.*", "storm surge/tide",
+                       stormdt$evtype)
 stormdt$evtype <- gsub(".*warm weather.*", "heat", stormdt$evtype)
 stormdt$evtype <- gsub(".*winds.*", "high wind", stormdt$evtype)
 stormdt$evtype <- gsub("^wind$", "high wind", stormdt$evtype)
 stormdt$evtype <- gsub(".*excessive snow*", "blizzard", stormdt$evtype)
 stormdt$evtype <- gsub("^snow$", "heavy snow", stormdt$evtype)
-stormdt$evtype <- gsub(".*late season snow.*", "heavy snow", stormdt$evtype)
+stormdt$evtype <- gsub(".*late season snow.*", "heavy snow",
+                       stormdt$evtype)
 
-
-
-flood <- c("flood", "dam", "ice jam", "fld", "river flood", "lakeshore flood", 
-           "river flooding", "high water")
+flood <- c("flood", "dam", "ice jam", "fld", "river flood", 
+           "lakeshore flood", "river flooding", "high water")
 for(f in flood){stormdt$evtype <- gsub(paste(".*", f, ".*", sep=""),
                                        "flood", stormdt$evtype)}
 
-ff <- c("freeze", "hard freeze", "agricultural freeze", "frost")
-for(f in ff){stormdt$evtype <- gsub(paste(".*", f, ".*", sep=""), "frost/freeze",
-                                    stormdt$evtype)}
+frost <- c("freeze", "hard freeze", "agricultural freeze", "frost")
+for(f in frost){stormdt$evtype <- gsub(paste(".*", f, ".*", sep=""),
+                                    "frost/freeze", stormdt$evtype)}
 
-winterweather <- c("freezing", "black ice", "icy", "ice roads", "ice on road",
-                   "light snow", "snow squall", "wintry", "winter", "snow and ice",
-                   "rain/snow", "cold and snow", "mixed precip", "falling snow/ice",
-                   "blowing snow")
-for(w in winterweather){stormdt$evtype <- gsub(paste(".*", w, ".*", sep=""),
+winter <- c("freezing", "black ice", "icy", "ice roads", 
+                   "ice on road", "light snow", "snow squall", "wintry",
+                   "winter", "snow and ice", "rain/snow", "cold and snow",
+                   "mixed precip", "falling snow/ice", "blowing snow")
+
+for(w in winter){stormdt$evtype <- gsub(paste(".*", w, ".*", sep=""),
                                                "winter weather", stormdt$evtype)}
 
 heat <- c("heat wave", "record heat", "record excessive heat",
@@ -141,18 +154,20 @@ heat <- c("heat wave", "record heat", "record excessive heat",
 for(h in heat){stormdt$evtype <- gsub(paste(".*", h, ".*", sep = ""),
                                       "excessive heat", stormdt$evtype)}
 
-xcold <- c("extreme cold", "unseasonable cold", "extended cold", "unseasonably cold",
-          "hypothermia", "extreme windchill")
+xcold <- c("extreme cold", "unseasonable cold", "extended cold",
+           "unseasonably cold", "hypothermia", "extreme windchill")
 for(c in xcold){stormdt$evtype <- gsub(paste(".*", c, ".*", sep = ""),
-                                      "extreme cold/wind chill", stormdt$evtype)}
+                                      "extreme cold/wind chill",
+                                      stormdt$evtype)}
 
 cold <- c("cold", "cold temperature", "cold weather")
 for(c in cold){stormdt$evtype <- gsub(paste(".*", c, ".*", sep=""), 
                                       "cold/wind chill", stormdt$evtype)}
 
-seas <- c("heavy seas", "high seas", "rough seas", "rip currents", "wind and wave",
-          "rogue wave", "high swells", "marine accident")
-for(s in seas){stormdt$evtype <- gsub(paste(".*", s, ".*", sep=""), "high surf",
+seas <- c("heavy seas", "high seas", "rough seas", "rip currents", 
+          "wind and wave", "rogue wave", "high swells", "marine accident")
+for(s in seas){stormdt$evtype <- gsub(paste(".*", s, ".*", sep=""), 
+                                      "high surf",
                                       stormdt$evtype)}
 
 debris <- c("mudslide", "mud slide", "mudslides", "rock slide",
@@ -160,8 +175,18 @@ debris <- c("mudslide", "mud slide", "mudslides", "rock slide",
 for(d in debris){stormdt$evtype <- gsub(paste(".*", d, ".*", sep = ""), 
                                         "debris flow", stormdt$evtype)}
 
+```
+
+```{r}
 stormdt <- stormdt[stormdt$evtype != "other" & stormdt$evtype != "drowning",]
-stormdt$evtype <- as.factor(stormdt$evtype)
+
+evtype_capitalize <- function(x) {
+        s <- strsplit(x, " ")[[1]]
+        paste(toupper(substring(s, 1,1)), substring(s, 2), sep="", collapse=" ")
+}
+
+stormdt$evtype <- sapply(stormdt$evtype, evtype_capitalize)
+#stormdt$evtype <- as.factor(stormdt$evtype)
 ```
 
 
@@ -183,14 +208,12 @@ matchtable <- c("astronomical low tide", "avalanche", "blizzard", "coastal flood
 
 ```
 
-```{r}
-#summary(stormdt)
-```
 
 
-Making some plots:
+#Making some plots:
 
 ```{r}
+library(ggplot2); 
 evtype_hist <- qplot(stormdt$evtype,
                      main = "Event Type Frequency accross USA",
                      xlab = "Event Type",
@@ -202,8 +225,7 @@ evtype_hist +
 ```
 
 
-
-Fatalities by event type:
+##Fatalities by event type:
 ```{r cache=TRUE}
 event_fatalities <- stormdt %>%
         group_by(evtype) %>%
@@ -215,16 +237,17 @@ ggplot(event_fatalities, aes(evtype, totalfatalities)) +
         labs(title = "Fatalities by Event Type", 
              x = "Event Type", y = "Total Fatalities") +
         theme(axis.text.x = element_text(angle = 45, hjust = 1),
-              plot.title = element_text(hjust = 0.5))
+              plot.title = element_text(hjust = 0.5),
+              legend.position = "none")
+```
+```{r results = "asis"}
+knitr::kable(head(event_fatalities), caption = "Total Fatalities by Event",
+             col.names = c("Event", "Total Fatalities"))
+
 ```
 
-```{r}
-knitr::kable(head(event_fatalities), caption = "Working Table")
-#head(event_fatalities)
-```
 
-
-Injuries by event type:
+##Injuries by event type:
 
 ```{r cache=TRUE}
 event_injuries <- stormdt %>%
@@ -237,43 +260,59 @@ ggplot(event_injuries, aes(evtype, totalinjuries)) +
         labs(title = "Injuries by Event Type", 
              x = "Event Type", y = "Total Injuries") +
         theme(axis.text.x = element_text(angle = 45, hjust = 1),
-              plot.title = element_text(hjust = 0.5))
+              plot.title = element_text(hjust = 0.5),
+              legend.position = "none")
 ```
 
 ```{r}
-head(event_injuries)
+knitr::kable(head(event_injuries), caption = "Total Injuries by Event",
+             col.names = c("Event", "Total Injuries"))
 ```
 
 
+# Summary stats for prop and crop damage
 ```{r}
 event_propdmg <- stormdt %>% 
         group_by(evtype) %>%
         summarise(totalpropdmg = sum(propdmg)) %>%
-        mutate(totalpropdmg = totalpropdmg / 1E9)
+        mutate(totalpropdmg = totalpropdmg / 1E9) %>%
+        arrange(desc(totalpropdmg))
 
 ggplot(event_propdmg, aes(evtype, totalpropdmg)) +
         geom_bar(stat = "sum") +
         labs(title = "Total Property Damage by Event Type",
-             x = "Event Type", y = "Total Damage") +
+             x = "Event Type", y = "Total Damage (in Billions)") +
         theme(axis.text.x = element_text(angle = 45, hjust = 1),
-              plot.title = element_text(hjust = 0.5))
+              plot.title = element_text(hjust = 0.5),
+              legend.position = "none")
         
 ```
 
+```{r}
+knitr::kable(head(event_propdmg), caption = "Property Damage by Event since 1996",
+             col.names = c("Event", "Property Damage (in Billions)"))
+```
+
+```{r}
+knitr::kable(head(event_cropdmg), caption = "Crop Damage by Event",
+             col.names = c("Event", "Crop Damage (in Billions)"))
+```
 
 
 ```{r}
 event_cropdmg <- stormdt %>% 
         group_by(evtype) %>%
         summarise(totalcropdmg = sum(cropdmg)) %>%
-        mutate(totalcropdmg = totalcropdmg / 1E9)
+        mutate(totalcropdmg = totalcropdmg / 1E9) %>%
+        arrange(desc(totalcropdmg))
 
-ggplot(event_cropdmg, aes(evtype, totalcropdmg)) +
+ggplot(event_cropdmg, aes(evtype, totalcropdmg), fill = evtype) +
         geom_bar(stat = "sum") +
         labs(title = "Total Crop Damage by Event Type",
              x = "Event Type", y = "Total Damage (Billions)") +
         theme(axis.text.x = element_text(angle = 45, hjust = 1),
-              plot.title = element_text(hjust = 0.5))
+              plot.title = element_text(hjust = 0.5),
+              legend.position = "none")
 ```
 
 ### Results
