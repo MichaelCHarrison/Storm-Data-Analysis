@@ -19,13 +19,12 @@ Your data analysis must address the following questions:
 
 2. Across the United States, which types of events have the greatest economic consequences?
 
-### Data Processing; data cleaning, analysis
+## Data Processing
+#### Data cleaning
 
-Using the read.csv, data is imported, replacing "?" with "NA" to eliminate unusuable factor level in the variable representing the exponential for property damage
+Data cleaning and organization will depend upon the following packages: data.table, dplyr, lubridate, and ggplot2(which is loaded later in the analysis to avoid masking issues with dplyr). Data from csv file read in using fread function of the data.table package for speed. All column names are set to lower case for ease in scripting; state columns renamed for clarity. Dates are transformed using the lubridate package function to set column to unambiguous date format. Data is then subset by date, starting on the first of January 1996, as 
 
-All column names set to lower case for ease in coding; state columns renamed for clarity.
-
-```{r echo=TRUE, cache=TRUE, message=FALSE, results='asis'}
+```{NOAA began recording all event types.r echo=TRUE, cache=TRUE, message=FALSE, results='hide'}
 library(data.table); library(dplyr); 
 library(lubridate); 
 options(scipen = 999)
@@ -44,7 +43,7 @@ stormdt <- stormdt[bgn_date >= "1996-01-01"]
 
 
 
-```{r}
+```{The following script take the factor of property and crop damage and applies it to the damage standardize the value. r}
 factordmg <- function(DT){
         DT[propdmgexp == "H" | propdmgexp == "h", propdmg := propdmg * 100]
         DT[propdmgexp == "K" | propdmgexp == "k", propdmg := propdmg * 1000]
@@ -62,7 +61,9 @@ factordmg <- function(DT){
 stormdt <- factordmg(stormdt)
 ```
 
-```{r}
+```{r}The data is reshaped to eliminate column variables unneeded for the purposes of the analysis using the select function of dplyr. The data is then filtered to remove records where fatalities, injuries, property damage, or crop damage amounted to zero.
+
+
 stormdt <- stormdt %>% 
         select(fips, state, county, countyname, evtype, 
                bgn_date, bgn_time, end_date, end_time, 
@@ -74,7 +75,8 @@ stormdt <- stormdt %>%
 ```
 
 #
-```{r}
+```{Examining the unique values in the evtype variable returns nearly 1000 types of events, though has a set list of 48 event types for recording purposes. A variety of non-standard event types recorded and typo make up wide range of event types. The values stored in the evtype column were corrected to fit the standard 48 through cross referencing the NOAA storm database analysis handbook.}
+
 stormdt$evtype <- tolower(stormdt$evtype)
 stormdt$evtype <- trimws(stormdt$evtype, which = "both")
 stormdt$evtype <- gsub("  ", " ", stormdt$evtype)
@@ -186,7 +188,6 @@ evtype_capitalize <- function(x) {
 }
 
 stormdt$evtype <- sapply(stormdt$evtype, evtype_capitalize)
-#stormdt$evtype <- as.factor(stormdt$evtype)
 ```
 
 
@@ -224,12 +225,24 @@ evtype_hist +
 
 ```
 
+```{r}
+knitr::kable(head(count(stormdt, evtype) %>% arrange(desc(n))),
+             caption = "Event Counts", col.names = c("Event", "Count"))
+```
+
 
 ##Fatalities by event type:
+
 ```{r cache=TRUE}
+timeframe <- as.numeric(difftime(max(stormdt$bgn_date), min(stormdt$bgn_date), 
+                      units = "weeks") / 52.25)
+
 event_fatalities <- stormdt %>%
         group_by(evtype) %>%
-        summarise(totalfatalities = sum(fatalities)) %>%
+        summarise(totalfatalities = sum(fatalities),
+                  fatalitiesper = (totalfatalities / n()),
+                  occurences = n(),
+                  occurencesperyear = occurences / timeframe) %>%
         arrange(desc(totalfatalities))
 
 ggplot(event_fatalities, aes(evtype, totalfatalities)) + 
@@ -242,7 +255,9 @@ ggplot(event_fatalities, aes(evtype, totalfatalities)) +
 ```
 ```{r results = "asis"}
 knitr::kable(head(event_fatalities), caption = "Total Fatalities by Event",
-             col.names = c("Event", "Total Fatalities"))
+             col.names = c("Event", "Total Fatalities",
+                           "Mortality (by occurence)", "Occurences", 
+                           "Occurences per Year"))
 
 ```
 
@@ -252,12 +267,15 @@ knitr::kable(head(event_fatalities), caption = "Total Fatalities by Event",
 ```{r cache=TRUE}
 event_injuries <- stormdt %>%
         group_by(evtype) %>%
-        summarise(totalinjuries = sum(injuries)) %>%
+        summarise(totalinjuries = sum(injuries),
+                  injuryperoccurence = totalinjuries / n(),
+                  occurences = n(),
+                  occurencesperyear = occurences/timeframe) %>%
         arrange(desc(totalinjuries))
 
 ggplot(event_injuries, aes(evtype, totalinjuries)) + 
         geom_bar(stat = "sum") +
-        labs(title = "Injuries by Event Type", 
+        labs(title = "Injuries by Event Type since 1996", 
              x = "Event Type", y = "Total Injuries") +
         theme(axis.text.x = element_text(angle = 45, hjust = 1),
               plot.title = element_text(hjust = 0.5),
@@ -265,8 +283,9 @@ ggplot(event_injuries, aes(evtype, totalinjuries)) +
 ```
 
 ```{r}
-knitr::kable(head(event_injuries), caption = "Total Injuries by Event",
-             col.names = c("Event", "Total Injuries"))
+knitr::kable(head(event_injuries), caption = "Total Injuries by Event since 1996",
+             col.names = c("Event", "Total Injuries", "Injuries per Occurence", 
+                           "Occurences", "Occurences per Year"))
 ```
 
 
@@ -274,13 +293,17 @@ knitr::kable(head(event_injuries), caption = "Total Injuries by Event",
 ```{r}
 event_propdmg <- stormdt %>% 
         group_by(evtype) %>%
-        summarise(totalpropdmg = sum(propdmg)) %>%
-        mutate(totalpropdmg = totalpropdmg / 1E9) %>%
+        summarise(totalpropdmg = sum(propdmg),
+                  damageperoccurence = totalpropdmg / n(),
+                  occurences = n(),
+                  occurencesperyear = occurences/timeframe) %>%
+        mutate(totalpropdmg = totalpropdmg / 1E9,
+               damageperoccurence = damageperoccurence / 1E6) %>%
         arrange(desc(totalpropdmg))
 
 ggplot(event_propdmg, aes(evtype, totalpropdmg)) +
         geom_bar(stat = "sum") +
-        labs(title = "Total Property Damage by Event Type",
+        labs(title = "Total Property Damage by Event Type since 1996",
              x = "Event Type", y = "Total Damage (in Billions)") +
         theme(axis.text.x = element_text(angle = 45, hjust = 1),
               plot.title = element_text(hjust = 0.5),
@@ -290,20 +313,20 @@ ggplot(event_propdmg, aes(evtype, totalpropdmg)) +
 
 ```{r}
 knitr::kable(head(event_propdmg), caption = "Property Damage by Event since 1996",
-             col.names = c("Event", "Property Damage (in Billions)"))
+             col.names = c("Event", "Damage (in Billions)",
+                           "Average Damage (in Millions)","Occurences", 
+                           "Occurences per Year"))
 ```
-
-```{r}
-knitr::kable(head(event_cropdmg), caption = "Crop Damage by Event",
-             col.names = c("Event", "Crop Damage (in Billions)"))
-```
-
 
 ```{r}
 event_cropdmg <- stormdt %>% 
         group_by(evtype) %>%
-        summarise(totalcropdmg = sum(cropdmg)) %>%
-        mutate(totalcropdmg = totalcropdmg / 1E9) %>%
+        summarise(totalcropdmg = sum(cropdmg),
+                  cropdmgperoccurence = totalcropdmg/n(),
+                  occurences = n(),
+                  occurencesperyear = occurences / timeframe) %>%
+        mutate(totalcropdmg = totalcropdmg / 1E9,
+               cropdmgperoccurence = cropdmgperoccurence/1E6) %>%
         arrange(desc(totalcropdmg))
 
 ggplot(event_cropdmg, aes(evtype, totalcropdmg), fill = evtype) +
@@ -313,6 +336,13 @@ ggplot(event_cropdmg, aes(evtype, totalcropdmg), fill = evtype) +
         theme(axis.text.x = element_text(angle = 45, hjust = 1),
               plot.title = element_text(hjust = 0.5),
               legend.position = "none")
+```
+
+```{r}
+knitr::kable(head(event_cropdmg), caption = "Crop Damage by Event",
+             col.names = c("Event", "Total Damage (in Billions)",
+                           "Damage per Occurence (in Millions)", "Occurences",
+                           "Occurences per Year"))
 ```
 
 ### Results
