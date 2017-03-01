@@ -3,9 +3,9 @@ title: "NOAA Storm Database Analysis"
 author: "Michael Harrison"
 date: "February 22, 2017"
 output:
-  pdf_document: 
-    latex_engine: xelatex
   html_document: default
+  pdf_document:
+    latex_engine: xelatex
 ---
 
 ##Introduction
@@ -35,11 +35,18 @@ stormdt <- fread("StormData.csv")
 colnames(stormdt) <- tolower(colnames(stormdt))
 colnames(stormdt)[1] <- "fips"
 colnames(stormdt)[7] <- "state" 
+```
 
+
+```{r}
 #change date formats
 stormdt$bgn_date <- mdy_hms(stormdt$bgn_date)
 stormdt$end_date <- mdy_hms(stormdt$end_date)
 stormdt <- stormdt[bgn_date >= "1996-01-01"] 
+stormdt$bgn_datetime <- as.POSIXct(paste(stormdt$bgn_date, stormdt$end_time),
+                                   format = "%Y-%m-%d %H:%M:%S")
+stormdt$end_datetime <- as.POSIXct(paste(stormdt$end_date, stormdt$end_time),
+                                   format = "%Y-%m-%d %H:%M:%S")
 ```
 <br>
 The following script takes the factor of property and crop damage and applies it to the damage standardize the value. 
@@ -62,62 +69,43 @@ factordmg <- function(DT){
 stormdt <- factordmg(stormdt)
 ```
 
-Adjusting property and crop damage values for inflation
-
-
-
 Create new datetime columns for event begining and event ending.
 
 ```{r}
-stormdt$bgn_datetime <- as.POSIXct(paste(stormdt$bgn_date, stormdt$end_time),
-                                   format = "%Y-%m-%d %H:%M:%S")
-stormdt$end_datetime <- as.POSIXct(paste(stormdt$end_date, stormdt$end_time),
-                                   format = "%Y-%m-%d %H:%M:%S")
+stormdt <- stormdt %>% 
+        select(fips, state, county, countyname, evtype, 
+               bgn_datetime, end_datetime, bgn_date, end_date,
+               length, width, f, mag,
+               fatalities, injuries, propdmg, cropdmg) %>%
+        filter(fatalities > 0 | injuries > 0 | propdmg > 0 | cropdmg > 0)
+
 ```
 
-```{r}
+```{r cache = TRUE}
 monthly_cpi <- 
         read.table("https://research.stlouisfed.org/fred2/data/CPIAUCSL.csv",
                    header = TRUE, sep = ",")
 colnames(monthly_cpi) <- tolower(colnames(monthly_cpi))
 monthly_cpi$cpi_year <- year(monthly_cpi$date)
 
-yearly_cpi <- 
-        monthly_cpi %>% 
+yearly_cpi <- monthly_cpi %>%
         group_by(cpi_year) %>%
         summarise(cpi = mean(value)) %>%
-        mutate(adjustment = 
-                       yearly_cpi$cpi / 
-                       yearly_cpi$cpi[yearly_cpi$cpi_year ==2011])
+                mutate(adjustment = 
+                              yearly_cpi$cpi / 
+                              yearly_cpi$cpi[yearly_cpi$cpi_year ==2011])
 
 stormdt$adjyear = year(stormdt$bgn_datetime)
 stormdt$adjustment <- yearly_cpi$adjustment[match(stormdt$adjyear,
-                                                   yearly_cpi$cpi_year)])
-
-stormdt <- 
-        stormdt %>%
-        mutate(adjyear = year(stormdt$bgn_datetime),
-               adjustment = yearly_cpi$adjustment[match(stormdt$adjyear,
-                                                   yearly_cpi$cpi_year)])
-               
-yearly_cpi$adjustment[match(stormdt$adjyear, yearly_cpi$cpi_year)]
-
-
+                                                   yearly_cpi$cpi_year)]
+stormdt$adjpropdmg <- stormdt$propdmg / stormdt$adjustment
+stormdt$adjcropdmg <- stormdt$cropdmg / stormdt$adjustment
 ```
 
 <br>
 The data is reshaped to eliminate column variables unneeded for the purposes of the analysis using the select function of dplyr. The data is then filtered to remove records where fatalities, injuries, property damage, or crop damage amounted to zero.
 
-```{r}
-stormdt <- stormdt %>% 
-        select(fips, state, county, countyname, evtype, 
-               bgn_datetime, end_datetime, 
-               length, width, f, mag,
-               fatalities, injuries, propdmg, cropdmg) %>%
-        filter(fatalities > 0 | injuries > 0 | propdmg > 0 | cropdmg > 0)
 
-
-```
 <br>
 Examining the unique values in the evtype variable returns nearly 1000 types of events, though has a set list of 48 event types for recording purposes. A variety of non-standard event types recorded and typo make up wide range of event types. The values stored in the evtype column were corrected to fit the standard 48 through cross referencing the NOAA storm database analysis handbook.
 
@@ -235,7 +223,8 @@ For presentation's sake, names of event types are capitalized.
 ```{r}
 evtype_capitalize <- function(x) {
         s <- strsplit(x, " ")[[1]]
-        paste(toupper(substring(s, 1,1)), substring(s, 2), sep="", collapse=" ")
+        paste(toupper(substring(s, 1,1)), substring(s, 2), 
+              sep="", collapse=" ")
 }
 
 stormdt$evtype <- sapply(stormdt$evtype, evtype_capitalize)
@@ -274,15 +263,16 @@ For the purposes of calculation, a timeframe variable is created using the difft
 A new data.table is created by grouping the data by event type, creating summary statistics for total fatalities, mortatity by event occurence, number of occurences, and finally occurences of a given event type by year (calculated with timeframe variable). ggplot() is employed to visualize total fatalities by event.
 
 ```{r cache=TRUE}
-timeframe <- as.numeric(difftime(max(stormdt$bgn_date), min(stormdt$bgn_date), 
-                      units = "weeks") / 52.25)
+timeframe <- as.numeric(difftime(max(stormdt$bgn_date),
+                                 min(stormdt$bgn_date), 
+                                 units = "days") / 365.25)
 
 event_fatalities <- stormdt %>%
         group_by(evtype) %>%
         summarise(totalfatalities = sum(fatalities),
-                  fatalitiesper = (totalfatalities / n()),
+                  peryear = totalfatalities / timeframe,
                   occurences = n(),
-                  occurencesperyear = occurences / timeframe) %>%
+                  fatalitiesperoccurence = totalfatalities / n()) %>%
         arrange(desc(totalfatalities))
 
 ggplot(event_fatalities, aes(evtype, totalfatalities)) + 
@@ -297,10 +287,10 @@ ggplot(event_fatalities, aes(evtype, totalfatalities)) +
 Table below expands on the data visualized above:
 
 ```{r results = "asis"}
-knitr::kable(head(event_fatalities), caption = "Total Fatalities by Event",
+knitr::kable(head(event_fatalities, n=10), caption = "Total Fatalities by Event",
              col.names = c("Event", "Total Fatalities",
-                           "Mortality (by occurence)", "Occurences", 
-                           "Yearly rate of occurence"))
+                           "Fatalities per Year", "Occurences",
+                           "Fatatlies per Occurence"))
 ```
 
 
@@ -309,6 +299,7 @@ knitr::kable(head(event_fatalities), caption = "Total Fatalities by Event",
 By the visualization and table above, the 3 event types which have the greatest impact of mortality are: Excessive Heat, Tornado, and Flood. The impact of these events will be further examined.
 
 <br>
+
 ##### Excessive Heat
 - most impacted states
 - count by month
@@ -327,7 +318,18 @@ nrow(excessive_heat)
 
 ```{r}
 tornado <- stormdt[which(stormdt$evtype == "Tornado"),]
-nrow(tornado)
+
+tornado_vis <- tornado %>%
+        mutate(month = format(bgn_datetime, "%m")) %>%
+        group_by(month) %>%
+        mutate(count = n())
+
+ggplot(tornado_vis) + 
+        geom_point(aes(month, count)) +
+        geom_line(aes(month, count))
+
+
+
 ```
 
 
