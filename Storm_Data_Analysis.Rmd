@@ -62,6 +62,10 @@ factordmg <- function(DT){
 stormdt <- factordmg(stormdt)
 ```
 
+Adjusting property and crop damage values for inflation
+
+
+
 Create new datetime columns for event begining and event ending.
 
 ```{r}
@@ -69,6 +73,36 @@ stormdt$bgn_datetime <- as.POSIXct(paste(stormdt$bgn_date, stormdt$end_time),
                                    format = "%Y-%m-%d %H:%M:%S")
 stormdt$end_datetime <- as.POSIXct(paste(stormdt$end_date, stormdt$end_time),
                                    format = "%Y-%m-%d %H:%M:%S")
+```
+
+```{r}
+monthly_cpi <- 
+        read.table("https://research.stlouisfed.org/fred2/data/CPIAUCSL.csv",
+                   header = TRUE, sep = ",")
+colnames(monthly_cpi) <- tolower(colnames(monthly_cpi))
+monthly_cpi$cpi_year <- year(monthly_cpi$date)
+
+yearly_cpi <- 
+        monthly_cpi %>% 
+        group_by(cpi_year) %>%
+        summarise(cpi = mean(value)) %>%
+        mutate(adjustment = 
+                       yearly_cpi$cpi / 
+                       yearly_cpi$cpi[yearly_cpi$cpi_year ==2011])
+
+stormdt$adjyear = year(stormdt$bgn_datetime)
+stormdt$adjustment <- yearly_cpi$adjustment[match(stormdt$adjyear,
+                                                   yearly_cpi$cpi_year)])
+
+stormdt <- 
+        stormdt %>%
+        mutate(adjyear = year(stormdt$bgn_datetime),
+               adjustment = yearly_cpi$adjustment[match(stormdt$adjyear,
+                                                   yearly_cpi$cpi_year)])
+               
+yearly_cpi$adjustment[match(stormdt$adjyear, yearly_cpi$cpi_year)]
+
+
 ```
 
 <br>
@@ -226,10 +260,13 @@ evtype_hist +
 Table reflecting the values of top 6 events by count:
 ```{r}
 knitr::kable(head(count(stormdt, evtype) %>% arrange(desc(n))),
-             caption = "Event Counts 1996-2011", col.names = c("Event", "Count"))
+             caption = "Event Counts 1996-2011", col.names = c("Event",
+                                                               "Count"))
+```
+```{r}
+
 ```
 
-<br>
 ####Examining impact on health by event type 
 
 For the purposes of calculation, a timeframe variable is created using the difftime function with units set to "weeks", the value of function then divded by 52.25 (accounting for the impact of leap years) to set the unit it years. The returned value is then coerced to a numeric value for computation.
@@ -264,9 +301,11 @@ knitr::kable(head(event_fatalities), caption = "Total Fatalities by Event",
              col.names = c("Event", "Total Fatalities",
                            "Mortality (by occurence)", "Occurences", 
                            "Yearly rate of occurence"))
-
 ```
-<br>
+
+
+
+
 By the visualization and table above, the 3 event types which have the greatest impact of mortality are: Excessive Heat, Tornado, and Flood. The impact of these events will be further examined.
 
 <br>
