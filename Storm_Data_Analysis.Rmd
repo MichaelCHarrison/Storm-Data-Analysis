@@ -3,9 +3,9 @@ title: "NOAA Storm Database Analysis"
 author: "Michael Harrison"
 date: "February 22, 2017"
 output:
-  html_document: default
   pdf_document:
     latex_engine: xelatex
+  html_document: default
 ---
 
 ##Introduction
@@ -26,6 +26,7 @@ Your data analysis must address the following questions:
 Data cleaning and organization will depend upon the following packages: data.table, dplyr, lubridate, and ggplot2(which is loaded later in the analysis to avoid masking issues with dplyr). Data from csv file read in using fread function of the data.table package for speed. All column names are set to lower case for ease in scripting; state columns renamed for clarity. Dates are transformed using the lubridate package function to set column to unambiguous date format. Data is then subset by date, starting on the first of January 1996, as NOAA began recording all event types.
 
 ```{r echo=TRUE, cache=TRUE, message=FALSE, results='hide'}
+knitr::opts_chunk$set(error = TRUE)
 library(data.table); library(dplyr); 
 library(lubridate); 
 options(scipen = 999)
@@ -43,7 +44,7 @@ colnames(stormdt)[7] <- "state"
 stormdt$bgn_date <- mdy_hms(stormdt$bgn_date)
 stormdt$end_date <- mdy_hms(stormdt$end_date)
 stormdt <- stormdt[bgn_date >= "1996-01-01"] 
-stormdt$bgn_datetime <- as.POSIXct(paste(stormdt$bgn_date, stormdt$end_time),
+stormdt$bgn_datetime <- as.POSIXct(paste(stormdt$bgn_date, stormdt$bgn_time),
                                    format = "%Y-%m-%d %H:%M:%S")
 stormdt$end_datetime <- as.POSIXct(paste(stormdt$end_date, stormdt$end_time),
                                    format = "%Y-%m-%d %H:%M:%S")
@@ -74,14 +75,14 @@ Create new datetime columns for event begining and event ending.
 ```{r}
 stormdt <- stormdt %>% 
         select(fips, state, county, countyname, evtype, 
-               bgn_datetime, end_datetime, bgn_date, end_date,
+               time_zone, bgn_datetime, end_datetime, bgn_date, end_date,
                length, width, f, mag,
                fatalities, injuries, propdmg, cropdmg) %>%
         filter(fatalities > 0 | injuries > 0 | propdmg > 0 | cropdmg > 0)
 
 ```
 
-```{r cache = TRUE}
+```{r}
 monthly_cpi <- 
         read.table("https://research.stlouisfed.org/fred2/data/CPIAUCSL.csv",
                    header = TRUE, sep = ",")
@@ -306,11 +307,36 @@ By the visualization and table above, the 3 event types which have the greatest 
 
 ```{r}
 excessive_heat <- stormdt[which(stormdt$evtype == "Excessive Heat"),]
-nrow(excessive_heat)
+
+excessive_heat_vis <- excessive_heat %>%
+        mutate(month = format(bgn_datetime, "%m")) %>%
+        group_by(month) %>%
+        summarise(totalfatalities = sum(fatalities))
+
+ggplot(excessive_heat_vis,aes(month, totalfatalities), 
+       color = aes(time_zone)) + 
+        geom_col() +
+        labs(title = "Excessive Heat: Deaths by Month",
+             x = "Month", y = "Deaths") +
+        theme_minimal() +
+        theme(plot.title = element_text(hjust = 0.5))
+
+excessive_heat_count <- excessive_heat %>%
+        mutate(month = format(bgn_datetime, "%m")) %>%
+        group_by(adjyear, month) %>%
+        mutate(count = n())
 ```
 
 
-<br>
+```{r}
+ggplot(excessive_heat_count, aes(bgn_datetime, count)) +
+        geom_point() + geom_smooth(method = lm)
+        
+
+```
+
+
+
 ##### Tornado
 
 -summary stats: duration, widtch, avg damage by F type, avg damage by width, avg damage by length, state with most torandos(damage by year)
@@ -319,30 +345,71 @@ nrow(excessive_heat)
 ```{r}
 tornado <- stormdt[which(stormdt$evtype == "Tornado"),]
 
-tornado_vis <- tornado %>%
+tornado_vis <- 
+        tornado %>%
         mutate(month = format(bgn_datetime, "%m")) %>%
         group_by(month) %>%
+        summarise(monthfatalities = sum(fatalities))
+
+ggplot(tornado_vis,aes(month, monthfatalities)) + 
+        geom_col() +
+        labs(title = "Tornado: Deaths by Month",
+             x = "Month", y = "Deaths") +
+        theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+```{r}
+tornado_counts <- 
+        tornado %>%
+        group_by(format(bgn_datetime, "%Y%m")) %>%
         mutate(count = n())
-
-ggplot(tornado_vis) + 
-        geom_point(aes(month, count)) +
-        geom_line(aes(month, count))
-
+        
+ggplot(tornado_counts, aes(bgn_datetime, count)) +
+        geom_point() + geom_smooth(method = lm)
 
 
 ```
 
 
-<br>
+```{r}
+tornado_zone_stats <- 
+        tornado %>%
+        group_by(time_zone) %>%
+        summarise(count = n()) %>%
+        arrange(desc(count)) %>%
+        print()
+```
+
+```{r}
+cst_tornado <- tornado[which(tornado$time_zone == "CST"),]
+
+cst_tornado_counts <- 
+        cst_tornado %>%
+        group_by(format(bgn_datetime, "%Y%m")) %>%
+        mutate(count = n())
+        
+ggplot(tornado_counts, aes(bgn_datetime, count)) +
+        geom_point() + geom_smooth(method = lm)
+```
+
+
 ##### Flood
 
 ```{r}
 flood <- stormdt[which(stormdt$evtype == "Flood"),]
-nrow(flood)
+flood_vis <- flood %>%
+        mutate(month = format(bgn_datetime, "%m")) %>%
+        group_by(month)
+
+ggplot(flood_vis,aes(month)) + 
+        geom_bar() +
+        theme(plot.title = element_text(hjust = 0.5))
+
 ```
 
 
-<br>
+
 #### Examining Injuries by event type:
 
 Summary dataset is generated through grouping data by event type, summarising total injuries, injuries sustained by occurence of event, number of event occurences, and occurences by year. ggplot2 is used to visualize the total number of injuries by event type.
@@ -373,6 +440,19 @@ knitr::kable(head(event_injuries), caption = "Total Injuries by Event since 1996
                            "Occurences", "Occurences per Year"))
 
 ```
+
+
+```{r}
+flood <- stormdt[which(stormdt$evtype == "Flood"),]
+flood_vis <- flood %>%
+        mutate(month = format(bgn_datetime, "%m")) %>%
+        group_by(month) %>%
+        mutate(count = n())
+
+ggplot(flood_vis,aes(month)) + 
+        geom_bar()
+```
+
 #### Economic Impact
 
 #####Property Damage
@@ -408,16 +488,50 @@ knitr::kable(head(event_propdmg), caption = "Property Damage by Event since 1996
 
 #####Flood
 
+```{r}
+flood <- stormdt[which(stormdt$evtype == "Flood"),]
+flood_propdmg <- 
+        flood %>% 
+        mutate(month = format(bgn_datetime, "%m")) %>%
+        group_by(month)
+```
 
 
-<br>
+```{r}
+
+
+ggplot(flood_inj, aes(month)) +
+        geom_bar()
+                       
+```
+
+```{r}
+flood_propdmg %>% 
+_avg <-
+        flood_propdmg        summarise(monthlydmgavg = mean(propdmg)) %>%
+        print()
+```
+
+<```
+
+
+```{r}
+ggplot(flood_propdmg_avg, aes(month, monthlydmgavg)) +
+        geom_point()
+br>
 #####Hurricane
 
+```{r}
+
+```
 
 
 <br>
 #####Storm Surge
 
+```{r}
+
+```
 
 
 
