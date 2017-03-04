@@ -31,7 +31,8 @@ library(data.table); library(dplyr);
 library(lubridate); 
 options(scipen = 999)
 
-stormdt <- fread("StormData.csv")
+stormdt_raw <- fread("StormData.csv")
+stormdt <- stormdt_raw
 
 colnames(stormdt) <- tolower(colnames(stormdt))
 colnames(stormdt)[1] <- "fips"
@@ -231,9 +232,27 @@ evtype_capitalize <- function(x) {
 stormdt$evtype <- sapply(stormdt$evtype, evtype_capitalize)
 ```
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ###Analysis
 
 All visualizations for storm data will be generated using the ggplot2 package from Hadley Wickman, begining with a histogram showing the event type counts for the time frame of January 1, 1996 to November 30, 2011.
+
+Table reflecting the values of top 6 events by count:
 
 ```{r}
 library(ggplot2); 
@@ -241,23 +260,16 @@ evtype_hist <- qplot(stormdt$evtype,
                      main = "Event Type Frequency accross USA",
                      xlab = "Event Type",
                      ylab = "Count")
-evtype_hist + 
-        theme(axis.text.x = element_text(angle = 45, hjust = 1),
-              plot.title = element_text(hjust = 0.5))
 
-```
-<br>
-Table reflecting the values of top 6 events by count:
-```{r}
-knitr::kable(head(count(stormdt, evtype) %>% arrange(desc(n))),
+knitr::kable(head(count(stormdt, evtype) %>% arrange(desc(n)), n=10),
              caption = "Event Counts 1996-2011", col.names = c("Event",
                                                                "Count"))
-```
-```{r}
 
 ```
 
-####Examining impact on health by event type 
+
+
+####Examining impact on public health
 
 For the purposes of calculation, a timeframe variable is created using the difftime function with units set to "weeks", the value of function then divded by 52.25 (accounting for the impact of leap years) to set the unit it years. The returned value is then coerced to a numeric value for computation.
 
@@ -276,10 +288,11 @@ event_fatalities <- stormdt %>%
                   fatalitiesperoccurence = totalfatalities / n()) %>%
         arrange(desc(totalfatalities))
 
-ggplot(event_fatalities, aes(evtype, totalfatalities)) + 
+ggplot(event_fatalities, aes(evtype, peryear)) + 
         geom_bar(stat = "sum") +
-        labs(title = "Fatalities by Event Type", 
-             x = "Event Type", y = "Total Fatalities") +
+        labs(title = "Fatalities per Year by Event Type", 
+             x = "Event Type", y = "Fatalities") +
+        theme_minimal() +
         theme(axis.text.x = element_text(angle = 45, hjust = 1),
               plot.title = element_text(hjust = 0.5),
               legend.position = "none")
@@ -288,12 +301,28 @@ ggplot(event_fatalities, aes(evtype, totalfatalities)) +
 Table below expands on the data visualized above:
 
 ```{r results = "asis"}
-knitr::kable(head(event_fatalities, n=10), caption = "Total Fatalities by Event",
+knitr::kable(head(event_fatalities, n=10), 
+             caption = "Total Fatalities by Event",
              col.names = c("Event", "Total Fatalities",
-                           "Fatalities per Year", "Occurences",
-                           "Fatatlies per Occurence"))
+                           "Fatalities per Year", "Occurences (since 1996)",
+                           "Fatalities per Occurence"))
 ```
 
+```{r}
+event_fatalities <- stormdt %>%
+        group_by(evtype) %>%
+        summarise(totalfatalities = sum(fatalities),
+                  peryear = totalfatalities / timeframe,
+                  occurences = n(),
+                  fatalitiesperoccurence = totalfatalities / n()) %>%
+        arrange(desc(fatalitiesperoccurence))
+
+knitr::kable(head(event_fatalities, n=7), 
+             caption = "Total Fatalities by Event",
+             col.names = c("Event", "Total Fatalities",
+                           "Fatalities per Year", "Occurences (since 1996)",
+                           "Fatalities per Occurence"))
+```
 
 
 
@@ -301,11 +330,31 @@ By the visualization and table above, the 3 event types which have the greatest 
 
 <br>
 
-##### Excessive Heat
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##### PublicHealth 1)Excessive Heat
 - most impacted states
 - count by month
 
-```{r}
+```{r results="asis"}
 excessive_heat <- stormdt[which(stormdt$evtype == "Excessive Heat"),]
 
 excessive_heat_vis <- excessive_heat %>%
@@ -313,31 +362,56 @@ excessive_heat_vis <- excessive_heat %>%
         group_by(month) %>%
         summarise(totalfatalities = sum(fatalities))
 
+# excessive_heat_vis$month <- month.abb[as.numeric(excessive_heat_vis$month)]
+
 ggplot(excessive_heat_vis,aes(month, totalfatalities), 
        color = aes(time_zone)) + 
         geom_col() +
         labs(title = "Excessive Heat: Deaths by Month",
              x = "Month", y = "Deaths") +
+        scale_x_discrete(labels = month.abb[as.numeric(
+                                  excessive_heat_vis$month)]) +
         theme_minimal() +
         theme(plot.title = element_text(hjust = 0.5))
-
-excessive_heat_count <- excessive_heat %>%
-        mutate(month = format(bgn_datetime, "%m")) %>%
-        group_by(adjyear, month) %>%
-        mutate(count = n())
 ```
 
 
 ```{r}
+excessive_heat_count <- excessive_heat %>%
+        mutate(month = format(bgn_datetime, "%m")) %>%
+        group_by(adjyear, month) %>%
+        mutate(count = n())
+
 ggplot(excessive_heat_count, aes(bgn_datetime, count)) +
-        geom_point() + geom_smooth(method = lm)
+        geom_point() + 
+        geom_smooth(method = lm) +
+        labs(title = "Excessive Heat",
+             x = "Year", y = "Count per Year") +
+        theme_minimal() +
+        theme(plot.title = element_text(hjust = .5))
         
 
 ```
 
 
 
-##### Tornado
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##### Public Health 2)Tornado
 
 -summary stats: duration, widtch, avg damage by F type, avg damage by width, avg damage by length, state with most torandos(damage by year)
 -visualizaitons: 
@@ -355,30 +429,42 @@ ggplot(tornado_vis,aes(month, monthfatalities)) +
         geom_col() +
         labs(title = "Tornado: Deaths by Month",
              x = "Month", y = "Deaths") +
+        scale_x_discrete(labels = month.abb[as.numeric(tornado_vis$month)]) +
+        theme_minimal() +
         theme(plot.title = element_text(hjust = 0.5))
 ```
 
 
 ```{r}
+
+
 tornado_counts <- 
         tornado %>%
         group_by(format(bgn_datetime, "%Y%m")) %>%
         mutate(count = n())
         
 ggplot(tornado_counts, aes(bgn_datetime, count)) +
-        geom_point() + geom_smooth(method = lm)
+        geom_point(size = .5) + 
+        geom_smooth() + 
+        geom_smooth(method = lm, color = "red") +
+        labs(title = "Tornadoes over time",
+             x = "Year", y = "Count") +
+        theme_minimal() +
+        theme(plot.title = element_text(hjust = .5))
 
 
 ```
 
 
-```{r}
+```{r results = "asis"}
 tornado_zone_stats <- 
         tornado %>%
         group_by(time_zone) %>%
         summarise(count = n()) %>%
-        arrange(desc(count)) %>%
-        print()
+        arrange(desc(count))
+
+knitr::kable(tornado_zone_stats, caption = "Torandos by Region",
+             col.names = c("Region", "Tornados"))
 ```
 
 ```{r}
@@ -386,12 +472,36 @@ cst_tornado <- tornado[which(tornado$time_zone == "CST"),]
 
 cst_tornado_counts <- 
         cst_tornado %>%
-        group_by(format(bgn_datetime, "%Y%m")) %>%
+        group_by(format(bgn_datetime, "%Y")) %>%
         mutate(count = n())
         
 ggplot(tornado_counts, aes(bgn_datetime, count)) +
-        geom_point() + geom_smooth(method = lm)
+        geom_point() + 
+        geom_smooth(method = lm, color = "red") + 
+        geom_smooth() +
+        labs(title = "Central Region Tornados",
+             x = "Year", y = "Number of Tornados") +
+        theme_minimal() +
+        theme(plot.title = element_text(hjust = 0.5))
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ##### Flood
@@ -402,11 +512,33 @@ flood_vis <- flood %>%
         mutate(month = format(bgn_datetime, "%m")) %>%
         group_by(month)
 
+
+#Gotta fix the labeling issue
 ggplot(flood_vis,aes(month)) + 
         geom_bar() +
+        labs(title = "Flood Frequency by Month", 
+             x = "Month", y = "Count") +
+        scale_x_discrete(labels = month.abb[unique(as.numeric(flood_vis$month))]) +
+        theme_minimal() +
         theme(plot.title = element_text(hjust = 0.5))
 
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -414,19 +546,21 @@ ggplot(flood_vis,aes(month)) +
 
 Summary dataset is generated through grouping data by event type, summarising total injuries, injuries sustained by occurence of event, number of event occurences, and occurences by year. ggplot2 is used to visualize the total number of injuries by event type.
 
-```{r cache=TRUE}
+```{r results="asis"}
 event_injuries <- stormdt %>%
         group_by(evtype) %>%
         summarise(totalinjuries = sum(injuries),
+                  injuryperyear = totalinjuries / timeframe,
                   injuryperoccurence = totalinjuries / n(),
                   occurences = n(),
                   occurencesperyear = occurences/timeframe) %>%
         arrange(desc(totalinjuries))
 
-ggplot(event_injuries, aes(evtype, totalinjuries)) + 
+ggplot(event_injuries, aes(evtype, injuryperyear)) + 
         geom_bar(stat = "sum") +
         labs(title = "Injuries by Event Type since 1996", 
              x = "Event Type", y = "Total Injuries") +
+        theme_minimal() +
         theme(axis.text.x = element_text(angle = 45, hjust = 1),
               plot.title = element_text(hjust = 0.5),
               legend.position = "none")
@@ -436,8 +570,9 @@ Table below expands on the data visualized above:
 
 ```{r}
 knitr::kable(head(event_injuries), caption = "Total Injuries by Event since 1996",
-             col.names = c("Event", "Total Injuries", "Injuries per Occurence", 
-                           "Occurences", "Occurences per Year"))
+             col.names = c("Event", "injuryperyear, Total Injuries", 
+                           "Injuries per Occurence", "Occurences", 
+                           "Occurences per Year"))
 
 ```
 
@@ -450,7 +585,13 @@ flood_vis <- flood %>%
         mutate(count = n())
 
 ggplot(flood_vis,aes(month)) + 
-        geom_bar()
+        geom_bar() +
+        labs(title = "Frequency of Floods by Month",
+             x = "Month", y = "Count") +
+        scale_x_discrete(labels = month.abb[unique(as.numeric(flood_vis$month))]) +
+        theme_minimal() +
+        theme(plot.title = element_text(hjust = .5))
+        
 ```
 
 #### Economic Impact
@@ -461,27 +602,31 @@ ggplot(flood_vis,aes(month)) +
 event_propdmg <- stormdt %>% 
         group_by(evtype) %>%
         summarise(totalpropdmg = sum(propdmg),
+                  damageperyear = totalpropdmg / timeframe,
                   damageperoccurence = totalpropdmg / n(),
                   occurences = n(),
                   occurencesperyear = occurences/timeframe) %>%
         mutate(totalpropdmg = totalpropdmg / 1E9,
-               damageperoccurence = damageperoccurence / 1E6) %>%
-        arrange(desc(totalpropdmg))
+               damageperoccurence = damageperoccurence / 1E6,
+               damageperyear = damageperyear / 1E9) %>%
+        arrange(desc(damageperyear))
 
-ggplot(event_propdmg, aes(evtype, totalpropdmg)) +
+ggplot(event_propdmg, aes(evtype, damageperyear)) +
         geom_bar(stat = "sum") +
-        labs(title = "Total Property Damage by Event Type since 1996",
+        labs(title = "Property Damage per Year",
              x = "Event Type", y = "Total Damage (in Billions)") +
+        theme_minimal() +
         theme(axis.text.x = element_text(angle = 45, hjust = 1),
               plot.title = element_text(hjust = 0.5),
-              legend.position = "none")
+              legend.position = "none") 
         
 ```
 
 Table below expands upon property damage by event type
 ```{r}
-knitr::kable(head(event_propdmg), caption = "Property Damage by Event since 1996",
-             col.names = c("Event", "Damage (in Billions)",
+knitr::kable(head(event_propdmg, n=10), 
+             caption = "Property Damage by Event since 1996",
+             col.names = c("Event", "Damage (in Billions)", "Damage per Year",
                            "Average Damage (in Millions)","Occurences", 
                            "Occurences per Year"))
 ```
@@ -498,32 +643,55 @@ flood_propdmg <-
 
 
 ```{r}
-
-
-ggplot(flood_inj, aes(month)) +
-        geom_bar()
+ggplot(flood_vis,aes(month)) + 
+        geom_bar() +
+        labs(title = "Frequency of Floods by Month",
+             x = "Month", y = "Count") +
+        scale_x_discrete(labels = month.abb[unique(as.numeric(flood_vis$month))]) +
+        theme_minimal() +
+        theme(plot.title = element_text(hjust = .5))
+        
                        
 ```
 
 ```{r}
-flood_propdmg %>% 
-_avg <-
-        flood_propdmg        summarise(monthlydmgavg = mean(propdmg)) %>%
-        print()
+flood_propdmg_avg <-
+        flood_propdmg %>% 
+        summarise(monthlydmgavg = mean(propdmg)) %>%
+        mutate(monthlydmgavg = monthlydmgavg / 1E6)
+
+ggplot(flood_propdmg_avg, aes(month, monthlydmgavg)) +
+        geom_point() +
+        labs(title = "Flood Property Damage", 
+             x = "Month", y = "Monthly Damage") +
+        theme_minimal() +
+        theme(plot.title = element_text(hjust = .5)) +
+        scale_x_discrete(labels = month.abb[as.numeric(flood_propdmg_avg$month)])
 ```
 
-<```
 
 
-```{r}
-ggplot(flood_propdmg_avg, aes(month, monthlydmgavg)) +
-        geom_point()
-br>
+
+
+
+
+
+
+
+
+
 #####Hurricane
 
 ```{r}
 
 ```
+
+
+
+
+
+
+
 
 
 <br>
@@ -541,29 +709,34 @@ br>
 event_cropdmg <- stormdt %>% 
         group_by(evtype) %>%
         summarise(totalcropdmg = sum(cropdmg),
+                  cropdmgperyear = totalcropdmg / timeframe,
                   cropdmgperoccurence = totalcropdmg/n(),
                   occurences = n(),
                   occurencesperyear = occurences / timeframe) %>%
         mutate(totalcropdmg = totalcropdmg / 1E9,
-               cropdmgperoccurence = cropdmgperoccurence/1E6) %>%
-        arrange(desc(totalcropdmg))
+               cropdmgperoccurence = cropdmgperoccurence/1E6,
+               cropdmgperyear = cropdmgperyear / 1E6) %>%
+        arrange(desc(cropdmgperyear))
 
 ggplot(event_cropdmg, aes(evtype, totalcropdmg), fill = evtype) +
         geom_bar(stat = "sum") +
         labs(title = "Total Crop Damage by Event Type",
              x = "Event Type", y = "Total Damage (Billions)") +
+        theme_minimal() +
         theme(axis.text.x = element_text(angle = 45, hjust = 1),
               plot.title = element_text(hjust = 0.5),
-              legend.position = "none")
+              legend.position = "none") 
+        
 ```
 
 Table below expands upon crop damage.
 
 ```{r}
-knitr::kable(head(event_cropdmg), caption = "Crop Damage by Event",
-             col.names = c("Event", "Total Damage (in Billions)",
-                           "Damage per Occurence (in Millions)", "Occurences",
-                           "Occurences per Year"))
+knitr::kable(head(event_cropdmg, n=10), caption = "Crop Damage by Event",
+             col.names = c("Event", "Total Damage (in Billions)", 
+                           "Damage per Year (Millions)", 
+                           "Damage per Occurence (in Millions)",
+                           "Occurences", "Occurences per Year"))
 
 ```
 
