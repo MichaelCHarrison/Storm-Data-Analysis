@@ -427,9 +427,8 @@ tornado_vis <-
 
 ggplot(tornado_vis,aes(month, monthfatalities)) + 
         geom_col() +
-        labs(title = "Tornado: Deaths by Month",
-             x = "Month", y = "Deaths") +
-        scale_x_discrete(labels = month.abb[as.numeric(tornado_vis$month)]) +
+        labs(title = "Tornado: DeatsFatalitieonth",
+             x = "Month", y = "DeathsFatalitie        scale_x_discrete(labels = month.abb[as.numeric(tornado_vis$month)]) +
         theme_minimal() +
         theme(plot.title = element_text(hjust = 0.5))
 ```
